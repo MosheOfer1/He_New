@@ -41,7 +41,7 @@ class CustomLLM(nn.Module):
 
         # English-Hebrew components
         self.en_he_encoder = en_he_model.model.encoder
-        self.en_he_decoder_layers = en_he_model.model.decoder.layers
+        self.en_he_decoder = en_he_model.model.decoder
 
         # Factorized output projection
         self.output_projection = FactorizedEmbedding(
@@ -73,8 +73,7 @@ class CustomLLM(nn.Module):
 
         # Freeze English-Hebrew components
         freeze_module(self.en_he_encoder)
-        for layer in self.en_he_decoder_layers:
-            freeze_module(layer)
+        freeze_module(self.en_he_decoder)
 
         # Ensure custom layers are trainable
         for param in self.custom_layer1.parameters():
@@ -86,14 +85,14 @@ class CustomLLM(nn.Module):
         for param in self.output_projection.parameters():
             param.requires_grad = True
 
-    def forward(self, input_ids, en_target_ids, he_target_ids, attention_mask=None):
+    def forward(self, input_ids, en_target_ids, he_target_ids, he_attention_mask=None, en_attention_mask=None, llm_attention_mask=None):
         # Ensure input_ids is of type Long
         input_ids = input_ids.long()
         en_target_ids = en_target_ids.long()
         he_target_ids = he_target_ids.long()
 
         # 1. Hebrew-English encoding
-        encoder_output = self.he_en_encoder(input_ids=input_ids, attention_mask=attention_mask).last_hidden_state
+        encoder_output = self.he_en_encoder(input_ids=input_ids, attention_mask=he_attention_mask).last_hidden_state
 
         # 2. Hebrew-English decoding with teacher forcing
         he_en_decoder_input_ids = torch.cat([
@@ -104,7 +103,7 @@ class CustomLLM(nn.Module):
         he_en_decoder_output = self.he_en_decoder(
             input_ids=he_en_decoder_input_ids,
             encoder_hidden_states=encoder_output,
-            attention_mask=attention_mask
+            attention_mask=en_attention_mask
         ).last_hidden_state
 
         # 3. First custom layer
@@ -112,13 +111,13 @@ class CustomLLM(nn.Module):
 
         # 4. LLM processing
         for layer in self.main_layers:
-            x = layer(hidden_states=x, attention_mask=attention_mask)[0]
+            x = layer(hidden_states=x, attention_mask=llm_attention_mask)[0]
 
         # 5. Second custom layer
         x = self.custom_layer2(x)
 
         # 6. English-Hebrew encoding
-        en_he_encoder_output = self.en_he_encoder(inputs_embeds=x, attention_mask=attention_mask).last_hidden_state
+        en_he_encoder_output = self.en_he_encoder(inputs_embeds=x, attention_mask=en_attention_mask).last_hidden_state
 
         # 7. English-Hebrew decoding with teacher forcing
         en_he_decoder_input_ids = torch.cat([
@@ -130,7 +129,7 @@ class CustomLLM(nn.Module):
         final_output = self.en_he_decoder(
             input_ids=en_he_decoder_input_ids,
             encoder_hidden_states=en_he_encoder_output,
-            attention_mask=attention_mask
+            attention_mask=he_attention_mask  # Use Hebrew attention mask for decoding
         ).last_hidden_state
 
         # 8. Final projection

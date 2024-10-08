@@ -1,0 +1,122 @@
+CustomLLM(
+  (he_en_embeddings): Embedding(60269, 1024, padding_idx=60268)
+  (he_en_encoder): MarianEncoder(
+    (embed_tokens): Embedding(60269, 1024, padding_idx=60268)
+    (embed_positions): MarianSinusoidalPositionalEmbedding(1024, 1024)
+    (layers): ModuleList(
+      (0-5): 6 x MarianEncoderLayer(
+        (self_attn): MarianAttention(
+          (k_proj): Linear(in_features=1024, out_features=1024, bias=True)
+          (v_proj): Linear(in_features=1024, out_features=1024, bias=True)
+          (q_proj): Linear(in_features=1024, out_features=1024, bias=True)
+          (out_proj): Linear(in_features=1024, out_features=1024, bias=True)
+        )
+        (self_attn_layer_norm): LayerNorm((1024,), eps=1e-05, elementwise_affine=True)
+        (activation_fn): ReLU()
+        (fc1): Linear(in_features=1024, out_features=4096, bias=True)
+        (fc2): Linear(in_features=4096, out_features=1024, bias=True)
+        (final_layer_norm): LayerNorm((1024,), eps=1e-05, elementwise_affine=True)
+      )
+    )
+  )
+  (he_en_decoder): MarianDecoder(
+    (embed_tokens): Embedding(60269, 1024, padding_idx=60268)
+    (embed_positions): MarianSinusoidalPositionalEmbedding(1024, 1024)
+    (layers): ModuleList(
+      (0-5): 6 x MarianDecoderLayer(
+        (self_attn): MarianAttention(
+          (k_proj): Linear(in_features=1024, out_features=1024, bias=True)
+          (v_proj): Linear(in_features=1024, out_features=1024, bias=True)
+          (q_proj): Linear(in_features=1024, out_features=1024, bias=True)
+          (out_proj): Linear(in_features=1024, out_features=1024, bias=True)
+        )
+        (activation_fn): ReLU()
+        (self_attn_layer_norm): LayerNorm((1024,), eps=1e-05, elementwise_affine=True)
+        (encoder_attn): MarianAttention(
+          (k_proj): Linear(in_features=1024, out_features=1024, bias=True)
+          (v_proj): Linear(in_features=1024, out_features=1024, bias=True)
+          (q_proj): Linear(in_features=1024, out_features=1024, bias=True)
+          (out_proj): Linear(in_features=1024, out_features=1024, bias=True)
+        )
+        (encoder_attn_layer_norm): LayerNorm((1024,), eps=1e-05, elementwise_affine=True)
+        (fc1): Linear(in_features=1024, out_features=4096, bias=True)
+        (fc2): Linear(in_features=4096, out_features=1024, bias=True)
+        (final_layer_norm): LayerNorm((1024,), eps=1e-05, elementwise_affine=True)
+      )
+    )
+  )
+  (custom_layer1): Sequential(
+    (0): Linear(in_features=1024, out_features=1024, bias=True)
+    (1): ReLU()
+    (2): LayerNorm((1024,), eps=1e-05, elementwise_affine=True)
+  )
+  (main_layers): ModuleList(
+    (0-23): 24 x OPTDecoderLayer(
+      (self_attn): OPTAttention(
+        (k_proj): Linear(in_features=1024, out_features=1024, bias=True)
+        (v_proj): Linear(in_features=1024, out_features=1024, bias=True)
+        (q_proj): Linear(in_features=1024, out_features=1024, bias=True)
+        (out_proj): Linear(in_features=1024, out_features=1024, bias=True)
+      )
+      (activation_fn): ReLU()
+      (self_attn_layer_norm): LayerNorm((1024,), eps=1e-05, elementwise_affine=True)
+      (fc1): Linear(in_features=1024, out_features=4096, bias=True)
+      (fc2): Linear(in_features=4096, out_features=1024, bias=True)
+      (final_layer_norm): LayerNorm((1024,), eps=1e-05, elementwise_affine=True)
+    )
+  )
+  (custom_layer2): Sequential(
+    (0): Linear(in_features=1024, out_features=512, bias=True)
+    (1): ReLU()
+    (2): LayerNorm((512,), eps=1e-05, elementwise_affine=True)
+  )
+  (en_he_encoder): MarianEncoder(
+    (embed_tokens): Embedding(65839, 512, padding_idx=65838)
+    (embed_positions): MarianSinusoidalPositionalEmbedding(512, 512)
+    (layers): ModuleList(
+      (0-5): 6 x MarianEncoderLayer(
+        (self_attn): MarianAttention(
+          (k_proj): Linear(in_features=512, out_features=512, bias=True)
+          (v_proj): Linear(in_features=512, out_features=512, bias=True)
+          (q_proj): Linear(in_features=512, out_features=512, bias=True)
+          (out_proj): Linear(in_features=512, out_features=512, bias=True)
+        )
+        (self_attn_layer_norm): LayerNorm((512,), eps=1e-05, elementwise_affine=True)
+        (activation_fn): SiLU()
+        (fc1): Linear(in_features=512, out_features=2048, bias=True)
+        (fc2): Linear(in_features=2048, out_features=512, bias=True)
+        (final_layer_norm): LayerNorm((512,), eps=1e-05, elementwise_affine=True)
+      )
+    )
+  )
+  (en_he_decoder): MarianDecoder(
+    (embed_tokens): Embedding(65839, 512, padding_idx=65838)
+    (embed_positions): MarianSinusoidalPositionalEmbedding(512, 512)
+    (layers): ModuleList(
+      (0-5): 6 x MarianDecoderLayer(
+        (self_attn): MarianAttention(
+          (k_proj): Linear(in_features=512, out_features=512, bias=True)
+          (v_proj): Linear(in_features=512, out_features=512, bias=True)
+          (q_proj): Linear(in_features=512, out_features=512, bias=True)
+          (out_proj): Linear(in_features=512, out_features=512, bias=True)
+        )
+        (activation_fn): SiLU()
+        (self_attn_layer_norm): LayerNorm((512,), eps=1e-05, elementwise_affine=True)
+        (encoder_attn): MarianAttention(
+          (k_proj): Linear(in_features=512, out_features=512, bias=True)
+          (v_proj): Linear(in_features=512, out_features=512, bias=True)
+          (q_proj): Linear(in_features=512, out_features=512, bias=True)
+          (out_proj): Linear(in_features=512, out_features=512, bias=True)
+        )
+        (encoder_attn_layer_norm): LayerNorm((512,), eps=1e-05, elementwise_affine=True)
+        (fc1): Linear(in_features=512, out_features=2048, bias=True)
+        (fc2): Linear(in_features=2048, out_features=512, bias=True)
+        (final_layer_norm): LayerNorm((512,), eps=1e-05, elementwise_affine=True)
+      )
+    )
+  )
+  (output_projection): FactorizedEmbedding(
+    (dense): Linear(in_features=512, out_features=256, bias=False)
+    (out_proj): Linear(in_features=256, out_features=60269, bias=False)
+  )
+)
