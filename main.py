@@ -1,6 +1,6 @@
 import argparse
 import torch
-from transformers import AutoModel, AutoTokenizer, OPTForCausalLM
+from transformers import AutoTokenizer, OPTForCausalLM, MarianMTModel
 
 from model import CustomLLM
 from dataset import TextDataset, create_dataloaders
@@ -37,8 +37,8 @@ def main():
     args = parser.parse_args()
 
     # Load models
-    he_en_model = AutoModel.from_pretrained(args.he_en_model)
-    en_he_model = AutoModel.from_pretrained(args.en_he_model)
+    he_en_model = MarianMTModel.from_pretrained(args.he_en_model)
+    en_he_model = MarianMTModel.from_pretrained(args.en_he_model)
     llm_model = OPTForCausalLM.from_pretrained(args.llm_model)
 
     # Use the tokenizer from the Hebrew-English model
