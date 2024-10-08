@@ -18,9 +18,9 @@ class CustomLLM(nn.Module):
         super().__init__()
 
         # Hebrew-English components
-        self.he_en_embeddings = he_en_model.shared
-        self.he_en_encoder = he_en_model.encoder
-        self.he_en_decoder = he_en_model.decoder
+        self.he_en_embeddings = he_en_model.model.shared
+        self.he_en_encoder = he_en_model.model.encoder
+        self.he_en_decoder = he_en_model.model.decoder
 
         # First custom layer
         self.custom_layer1 = nn.Sequential(
@@ -40,8 +40,8 @@ class CustomLLM(nn.Module):
         )
 
         # English-Hebrew components
-        self.en_he_encoder = en_he_model.encoder
-        self.en_he_decoder_layers = en_he_model.decoder.layers
+        self.en_he_encoder = en_he_model.model.encoder
+        self.en_he_decoder_layers = en_he_model.model.decoder.layers
 
         # Factorized output projection
         self.output_projection = FactorizedEmbedding(
