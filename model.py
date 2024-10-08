@@ -30,9 +30,8 @@ class CustomLLM(nn.Module):
                 d_model=llm_model.config.hidden_size,
                 nhead=llm_model.config.num_attention_heads,
                 dim_feedforward=llm_model.config.ffn_dim,
-                dropout=llm_model.config.hidden_dropout_prob,
-                activation=llm_model.config.hidden_act,
-                batch_first=True
+                dropout=llm_model.config.dropout,
+                activation="relu"  # PyTorch TransformerEncoderLayer uses string activation names
             )
         )
 
@@ -45,9 +44,8 @@ class CustomLLM(nn.Module):
                 d_model=llm_model.config.hidden_size,
                 nhead=llm_model.config.num_attention_heads,
                 dim_feedforward=llm_model.config.ffn_dim,
-                dropout=llm_model.config.hidden_dropout_prob,
-                activation=llm_model.config.hidden_act,
-                batch_first=True
+                dropout=llm_model.config.dropout,
+                activation="relu"  # PyTorch TransformerEncoderLayer uses string activation names
             ),
             nn.Linear(llm_model.config.hidden_size, en_he_model.config.hidden_size)
         )
