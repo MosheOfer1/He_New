@@ -1,5 +1,6 @@
 import torch
 import torch.nn as nn
+from torch.nn import TransformerEncoderLayer
 
 
 class FactorizedEmbedding(nn.Module):
@@ -22,21 +23,33 @@ class CustomLLM(nn.Module):
         self.he_en_encoder = he_en_model.model.encoder
         self.he_en_decoder = he_en_model.model.decoder
 
-        # First custom layer
+        # First custom transformer layer
         self.custom_layer1 = nn.Sequential(
             nn.Linear(he_en_model.config.hidden_size, llm_model.config.hidden_size),
-            nn.ReLU(),
-            nn.LayerNorm(llm_model.config.hidden_size)
+            TransformerEncoderLayer(
+                d_model=llm_model.config.hidden_size,
+                nhead=llm_model.config.num_attention_heads,
+                dim_feedforward=llm_model.config.ffn_dim,
+                dropout=llm_model.config.hidden_dropout_prob,
+                activation=llm_model.config.hidden_act,
+                batch_first=True
+            )
         )
 
         # LLM layers (main body of the model)
         self.main_layers = llm_model.model.decoder.layers
 
-        # Second custom layer
+        # Second custom transformer layer
         self.custom_layer2 = nn.Sequential(
-            nn.Linear(llm_model.config.hidden_size, en_he_model.config.hidden_size),
-            nn.ReLU(),
-            nn.LayerNorm(en_he_model.config.hidden_size)
+            TransformerEncoderLayer(
+                d_model=llm_model.config.hidden_size,
+                nhead=llm_model.config.num_attention_heads,
+                dim_feedforward=llm_model.config.ffn_dim,
+                dropout=llm_model.config.hidden_dropout_prob,
+                activation=llm_model.config.hidden_act,
+                batch_first=True
+            ),
+            nn.Linear(llm_model.config.hidden_size, en_he_model.config.hidden_size)
         )
 
         # English-Hebrew components
