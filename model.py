@@ -32,12 +32,9 @@ class CustomLLM(nn.Module):
                 dim_feedforward=llm_model.config.ffn_dim,
                 dropout=llm_model.config.dropout,
                 activation="relu",
-                batch_first=True  # Add this if your input is in batch-first format
+                batch_first=True
             )
         )
-        print(f"Number of attention heads: {llm_model.config.num_attention_heads}")
-        print(f"Hidden size: {llm_model.config.hidden_size}")
-        print(f"FFN dim: {llm_model.config.ffn_dim}")
 
         # LLM layers (main body of the model)
         self.main_layers = llm_model.model.decoder.layers
@@ -50,7 +47,7 @@ class CustomLLM(nn.Module):
                 dim_feedforward=llm_model.config.ffn_dim,
                 dropout=llm_model.config.dropout,
                 activation="relu",
-                batch_first=True  # Add this if your input is in batch-first format
+                batch_first=True
             ),
             nn.Linear(llm_model.config.hidden_size, en_he_model.config.hidden_size)
         )
