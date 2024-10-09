@@ -7,6 +7,7 @@ class TextDataset(Dataset):
     def __init__(self, file_path, tokenizer, eval_split=0.1, max_length=None):
         self.tokenizer = tokenizer
         self.max_length = max_length
+        self.pad_token_id = tokenizer.pad_token_id
 
         with open(file_path, 'r', encoding='utf-8') as f:
             self.sentences = [line.strip() for line in f if line.strip()]
@@ -35,19 +36,18 @@ class TextDataset(Dataset):
             eval_data.append((input_ids, target_ids))
         return eval_data
 
+    def collate_batch(self, batch):
+        # Separate inputs and targets
+        input_ids, target_ids = zip(*batch)
 
-def collate_batch(batch):
-    # Separate inputs and targets
-    input_ids, target_ids = zip(*batch)
+        # Pad sequences
+        padded_input_ids = pad_sequence(input_ids, batch_first=True, padding_value=self.pad_token_id)
+        padded_target_ids = pad_sequence(target_ids, batch_first=True, padding_value=self.pad_token_id)
 
-    # Pad sequences
-    padded_input_ids = pad_sequence(input_ids, batch_first=True, padding_value=0)
-    padded_target_ids = pad_sequence(target_ids, batch_first=True, padding_value=0)
+        # Create attention masks
+        attention_mask = torch.zeros_like(padded_input_ids).masked_fill(padded_input_ids != 0, 1)
 
-    # Create attention masks
-    attention_mask = torch.zeros_like(padded_input_ids).masked_fill(padded_input_ids != 0, 1)
-
-    return padded_input_ids, padded_target_ids, attention_mask
+        return padded_input_ids, padded_target_ids, attention_mask
 
 
 def create_dataloaders(dataset, batch_size):
@@ -55,7 +55,7 @@ def create_dataloaders(dataset, batch_size):
         dataset,
         batch_size=batch_size,
         shuffle=True,
-        collate_fn=collate_batch
+        collate_fn=dataset.collate_batch
     )
 
     eval_dataset = dataset.get_eval_data()
@@ -63,7 +63,7 @@ def create_dataloaders(dataset, batch_size):
         eval_dataset,
         batch_size=batch_size,
         shuffle=False,
-        collate_fn=collate_batch
+        collate_fn=dataset.collate_batch
     )
 
     return train_dataloader, eval_dataloader

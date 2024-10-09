@@ -122,7 +122,7 @@ class Trainer:
 
                 optimizer.zero_grad()
                 logits = self.model(
-                    batch_x, en_translation, batch_y,
+                    batch_x, en_translation,
                     he_attention_mask=he_attention_mask,
                     en_attention_mask=en_attention_mask,
                     llm_attention_mask=llm_attention_mask

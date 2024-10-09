@@ -19,7 +19,6 @@ class CustomLLM(nn.Module):
         super().__init__()
 
         # Hebrew-English components
-        self.he_en_embeddings = he_en_model.model.shared
         self.he_en_encoder = he_en_model.model.encoder
         self.he_en_decoder = he_en_model.model.decoder
 
@@ -76,7 +75,6 @@ class CustomLLM(nn.Module):
                 param.requires_grad = False
 
         # Freeze Hebrew-English components
-        freeze_module(self.he_en_embeddings)
         freeze_module(self.he_en_encoder)
         freeze_module(self.he_en_decoder)
 
@@ -98,11 +96,10 @@ class CustomLLM(nn.Module):
         for param in self.output_projection.parameters():
             param.requires_grad = True
 
-    def forward(self, input_ids, en_target_ids, he_target_ids, he_attention_mask=None, en_attention_mask=None, llm_attention_mask=None):
+    def forward(self, input_ids, en_target_ids, he_attention_mask=None, en_attention_mask=None, llm_attention_mask=None):
         # Ensure input_ids is of type Long
         input_ids = input_ids.long()
         en_target_ids = en_target_ids.long()
-        he_target_ids = he_target_ids.long()
 
         # 1. Hebrew-English encoding
         encoder_output = self.he_en_encoder(input_ids=input_ids, attention_mask=he_attention_mask).last_hidden_state
@@ -134,9 +131,9 @@ class CustomLLM(nn.Module):
 
         # 7. English-Hebrew decoding with teacher forcing
         en_he_decoder_input_ids = torch.cat([
-            torch.full((he_target_ids.shape[0], 1), self.en_he_decoder.config.decoder_start_token_id,
-                       device=he_target_ids.device),
-            he_target_ids[:, :-1]
+            torch.full((input_ids.shape[0], 1), self.en_he_decoder.config.decoder_start_token_id,
+                       device=input_ids.device),
+            input_ids[:, :-1]
         ], dim=1)
 
         final_output = self.en_he_decoder(
