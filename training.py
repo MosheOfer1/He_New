@@ -10,6 +10,9 @@ class Trainer:
         self.model = model.to(device)
         self.he_en_model = he_en_model.to(device)
         self.tokenizer = tokenizer
+        self.pad_token_id = tokenizer.pad_token_id
+        self.start_token_id = tokenizer.eos_token_id
+
         self.device = device
         self.logger = setup_logger(log_dir)
         self.save_dir = save_dir
@@ -23,13 +26,25 @@ class Trainer:
             os.makedirs(save_dir)
 
     def evaluate_batch(self, logits, targets):
-        loss = F.cross_entropy(logits.view(-1, logits.size(-1)), targets.view(-1),
-                               ignore_index=self.tokenizer.pad_token_id)
+        # Create a mask to ignore both start and pad tokens
+        ignore_mask = (targets != self.start_token_id) & (targets != self.pad_token_id)
+
+        # Apply the mask to both logits and targets
+        filtered_logits = logits.view(-1, logits.size(-1))[ignore_mask.view(-1)]
+        filtered_targets = targets.view(-1)[ignore_mask.view(-1)]
+
+        # Calculate loss using the filtered logits and targets
+        loss = F.cross_entropy(filtered_logits, filtered_targets)
+
+        # Calculate accuracy
         pred = logits.argmax(dim=-1)
-        correct = (pred == targets).float().sum()
-        total = targets.numel()
-        accuracy = correct / total
+        correct = ((pred == targets) & ignore_mask).float().sum()
+        total = ignore_mask.float().sum()
+        accuracy = correct / total if total > 0 else 0.0
+
+        # Calculate perplexity
         perplexity = math.exp(loss.item())
+
         return loss.item(), accuracy.item(), perplexity
 
     def evaluate_full(self, dataloader, dataset_name):
@@ -40,12 +55,21 @@ class Trainer:
                 batch_x, batch_y = batch_x.to(self.device), batch_y.to(self.device)
                 en_translation = self.he_en_model.generate(batch_x)
                 logits = self.model(batch_x, en_translation, batch_y)
-                loss = F.cross_entropy(logits.view(-1, logits.size(-1)), batch_y.view(-1),
-                                       reduction='sum', ignore_index=self.tokenizer.pad_token_id)
+
+                # Create a mask to ignore both start and pad tokens
+                ignore_mask = (batch_y != self.start_token_id) & (batch_y != self.pad_token_id)
+
+                # Apply the mask to both logits and targets
+                filtered_logits = logits.view(-1, logits.size(-1))[ignore_mask.view(-1)]
+                filtered_targets = batch_y.view(-1)[ignore_mask.view(-1)]
+
+                # Calculate loss using the filtered logits and targets
+                loss = F.cross_entropy(filtered_logits, filtered_targets, reduction='sum')
                 total_loss += loss.item()
+
                 pred = logits.argmax(dim=-1)
-                total_correct += (pred == batch_y).sum().item()
-                total_tokens += batch_y.numel()
+                total_correct += ((pred == batch_y) & ignore_mask).sum().item()
+                total_tokens += ignore_mask.sum().item()
 
         avg_loss = total_loss / total_tokens
         accuracy = total_correct / total_tokens
@@ -64,10 +88,10 @@ class Trainer:
         en_sequence = en_translation[-1]
         predicted_ids = torch.argmax(logits[-1], dim=-1)
 
-        input_text = self.tokenizer.decode(input_sequence, skip_special_tokens=True)
+        input_text = self.tokenizer.decode(input_sequence, skip_special_tokens=False)
         predicted_text = self.tokenizer.decode(predicted_ids, skip_special_tokens=False)
         target_text = self.tokenizer.decode(target_sequence, skip_special_tokens=False)
-        en_text = self.tokenizer.decode(en_sequence, skip_special_tokens=True)
+        en_text = self.tokenizer.decode(en_sequence, skip_special_tokens=False)
 
         self.logger.info(f"\nStep {step}, Prediction vs Actual:")
         self.logger.info(f"Input (Hebrew): {input_text}")
@@ -128,8 +152,17 @@ class Trainer:
                     llm_attention_mask=llm_attention_mask
 
                 )
-                loss = F.cross_entropy(logits.view(-1, logits.size(-1)), batch_y.view(-1),
-                                       ignore_index=self.tokenizer.pad_token_id)
+
+                # Create a mask to ignore both start and pad tokens
+                ignore_mask = (batch_y != self.start_token_id) & (batch_y != self.pad_token_id)
+
+                # Apply the mask to both logits and targets
+                filtered_logits = logits.view(-1, logits.size(-1))[ignore_mask.view(-1)]
+                filtered_targets = batch_y.view(-1)[ignore_mask.view(-1)]
+
+                # Calculate loss using the filtered logits and targets
+                loss = F.cross_entropy(filtered_logits, filtered_targets)
+
                 loss.backward()
                 optimizer.step()
 
