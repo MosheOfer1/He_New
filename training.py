@@ -66,7 +66,7 @@ class Trainer:
 
         input_text = self.tokenizer.decode(input_sequence, skip_special_tokens=True)
         predicted_text = self.tokenizer.decode(predicted_ids, skip_special_tokens=False)
-        target_text = self.tokenizer.decode(target_sequence, skip_special_tokens=True)
+        target_text = self.tokenizer.decode(target_sequence, skip_special_tokens=False)
         en_text = self.tokenizer.decode(en_sequence, skip_special_tokens=True)
 
         self.logger.info(f"\nStep {step}, Prediction vs Actual:")
