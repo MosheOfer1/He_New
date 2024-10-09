@@ -23,7 +23,8 @@ class Trainer:
             os.makedirs(save_dir)
 
     def evaluate_batch(self, logits, targets):
-        loss = F.cross_entropy(logits.view(-1, logits.size(-1)), targets.view(-1))
+        loss = F.cross_entropy(logits.view(-1, logits.size(-1)), targets.view(-1),
+                               ignore_index=self.tokenizer.pad_token_id)
         pred = logits.argmax(dim=-1)
         correct = (pred == targets).float().sum()
         total = targets.numel()
@@ -39,7 +40,8 @@ class Trainer:
                 batch_x, batch_y = batch_x.to(self.device), batch_y.to(self.device)
                 en_translation = self.he_en_model.generate(batch_x)
                 logits = self.model(batch_x, en_translation, batch_y)
-                loss = F.cross_entropy(logits.view(-1, logits.size(-1)), batch_y.view(-1), reduction='sum')
+                loss = F.cross_entropy(logits.view(-1, logits.size(-1)), batch_y.view(-1),
+                                       reduction='sum', ignore_index=self.tokenizer.pad_token_id)
                 total_loss += loss.item()
                 pred = logits.argmax(dim=-1)
                 total_correct += (pred == batch_y).sum().item()
@@ -63,7 +65,7 @@ class Trainer:
         predicted_ids = torch.argmax(logits[-1], dim=-1)
 
         input_text = self.tokenizer.decode(input_sequence, skip_special_tokens=True)
-        predicted_text = self.tokenizer.decode(predicted_ids, skip_special_tokens=True)
+        predicted_text = self.tokenizer.decode(predicted_ids, skip_special_tokens=False)
         target_text = self.tokenizer.decode(target_sequence, skip_special_tokens=True)
         en_text = self.tokenizer.decode(en_sequence, skip_special_tokens=True)
 
