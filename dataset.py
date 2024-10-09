@@ -1,4 +1,3 @@
-import torch
 from torch.utils.data import Dataset, DataLoader
 from torch.nn.utils.rnn import pad_sequence
 
@@ -22,32 +21,50 @@ class TextDataset(Dataset):
 
     def __getitem__(self, idx):
         sentence = self.train_sentences[idx]
-        tokenized = self.tokenizer.encode(sentence, max_length=self.max_length, truncation=True)
-        input_ids = torch.tensor(tokenized[:-1], dtype=torch.long)
-        target_ids = torch.tensor(tokenized[1:], dtype=torch.long)
-        return input_ids, target_ids
+        encoded = self.tokenizer.encode_plus(
+            sentence,
+            add_special_tokens=True,  # Add [CLS] and [SEP] tokens
+            return_tensors='pt',
+            padding=False,
+            truncation=False
+        )
+        input_ids = encoded['input_ids'].squeeze(0)
+        attention_mask = encoded['attention_mask'].squeeze(0)
+
+        # Create target_ids by shifting input_ids right
+        target_ids = input_ids.clone()
+        target_ids[:-1] = input_ids[1:]
+
+        return input_ids, target_ids, attention_mask
 
     def get_eval_data(self):
         eval_data = []
         for sentence in self.eval_sentences:
-            tokenized = self.tokenizer.encode(sentence, max_length=self.max_length, truncation=True)
-            input_ids = torch.tensor(tokenized[:-1], dtype=torch.long)
-            target_ids = torch.tensor(tokenized[1:], dtype=torch.long)
-            eval_data.append((input_ids, target_ids))
+            encoded = self.tokenizer.encode_plus(
+                sentence,
+                max_length=self.max_length,
+                truncation=True,
+                padding='max_length',
+                return_tensors='pt'
+            )
+            input_ids = encoded['input_ids'].squeeze(0)
+            attention_mask = encoded['attention_mask'].squeeze(0)
+
+            target_ids = input_ids.clone()
+            target_ids[:-1] = input_ids[1:]
+            target_ids[-1] = self.tokenizer.eos_token_id
+
+            eval_data.append((input_ids, target_ids, attention_mask))
         return eval_data
 
     def collate_batch(self, batch):
-        # Separate inputs and targets
-        input_ids, target_ids = zip(*batch)
+        input_ids, target_ids, attention_masks = zip(*batch)
 
-        # Pad sequences
         padded_input_ids = pad_sequence(input_ids, batch_first=True, padding_value=self.pad_token_id)
         padded_target_ids = pad_sequence(target_ids, batch_first=True, padding_value=self.pad_token_id)
+        padded_attention_masks = pad_sequence(attention_masks, batch_first=True, padding_value=0)
 
-        # Create attention masks
-        attention_mask = torch.zeros_like(padded_input_ids).masked_fill(padded_input_ids != 0, 1)
-
-        return padded_input_ids, padded_target_ids, attention_mask
+        return padded_input_ids, padded_target_ids, padded_attention_masks
 
 
 def create_dataloaders(dataset, batch_size):

@@ -112,13 +112,11 @@ class Trainer:
                     # Generate English translation
                     en_translation = self.he_en_model.generate(batch_x, attention_mask=he_attention_mask)
 
-                    # Remove the start token (assuming it's always the first token)
-                    en_translation = en_translation[:, 1:]
-
                     # Create new attention mask for the English translation
                     en_attention_mask = (en_translation != self.tokenizer.pad_token_id).float()
 
-                llm_attention_mask = create_opt_attention_mask(en_translation, self.tokenizer.pad_token_id)
+                    # Create OPT attention mask for the LLM
+                    llm_attention_mask = create_opt_attention_mask(en_translation, self.tokenizer.pad_token_id)
 
                 optimizer.zero_grad()
                 logits = self.model(

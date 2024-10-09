@@ -105,13 +105,8 @@ class CustomLLM(nn.Module):
         encoder_output = self.he_en_encoder(input_ids=input_ids, attention_mask=he_attention_mask).last_hidden_state
 
         # 2. Hebrew-English decoding with teacher forcing
-        he_en_decoder_input_ids = torch.cat([
-            torch.full((en_target_ids.shape[0], 1), self.he_en_decoder_start_token_id, device=en_target_ids.device),
-            en_target_ids[:, :-1]
-        ], dim=1)
-
         he_en_decoder_output = self.he_en_decoder(
-            input_ids=he_en_decoder_input_ids,
+            input_ids=en_target_ids,
             encoder_hidden_states=encoder_output,
             attention_mask=en_attention_mask
         ).last_hidden_state
