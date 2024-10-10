@@ -119,16 +119,12 @@ class Trainer:
         en_sequence = en_translation[-1]
         predicted_ids = torch.argmax(logits[-1], dim=-1)
 
-        input_text = self.tokenizer.decode(input_sequence, skip_special_tokens=False)
-        predicted_text = self.tokenizer.decode(predicted_ids, skip_special_tokens=False)
-        target_text = self.tokenizer.decode(target_sequence, skip_special_tokens=False)
-        en_text = self.tokenizer.decode(en_sequence, skip_special_tokens=False)
+        input_text = self.tokenizer.decode(input_sequence, skip_special_tokens=True)
+        en_text = self.tokenizer.decode(en_sequence, skip_special_tokens=True)
 
         self.logger.info(f"Step {step}, Prediction vs Actual:")
         self.logger.info(f"Input (Hebrew): {input_text}")
         self.logger.info(f"Intermediate (English): {en_text}")
-        self.logger.info(f"Predicted (Hebrew): {predicted_text}")
-        self.logger.info(f"Actual (Hebrew): {target_text}")
 
         # Token-wise comparison
         predicted_tokens = self.tokenizer.convert_ids_to_tokens(predicted_ids)

@@ -61,45 +61,46 @@ def print_model_info(model, logger):
     logger.info("\nDetailed Model Architecture:")
     logger.info(str(model))
 
-    total_params = sum(p.numel() for p in model.parameters())
-    trainable_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
+    # Use a set to keep track of unique parameters
+    unique_params = set()
+    unique_trainable_params = set()
 
-    logger.info(f"\nTotal parameters: {total_params:,}")
-    logger.info(f"Trainable parameters: {trainable_params:,}")
-    logger.info(f"Percentage of trainable parameters: {trainable_params / total_params * 100:.2f}%")
+    def count_unique_params(module):
+        for param in module.parameters():
+            param_id = id(param)
+            if param_id not in unique_params:
+                unique_params.add(param_id)
+                if param.requires_grad:
+                    unique_trainable_params.add(param_id)
+
+    # Recursively count unique parameters
+    model.apply(count_unique_params)
+
+    total_unique_params = sum(p.numel() for p in model.parameters() if id(p) in unique_params)
+    total_unique_trainable_params = sum(p.numel() for p in model.parameters() if id(p) in unique_trainable_params)
+
+    logger.info(f"\nTotal unique parameters: {total_unique_params:,}")
+    logger.info(f"Unique trainable parameters: {total_unique_trainable_params:,}")
+    logger.info(f"Percentage of unique trainable parameters: {total_unique_trainable_params / total_unique_params * 100:.2f}%")
 
     logger.info("\nDetailed Layer-wise Information:")
-    for name, module in model.named_children():
+    for name, module in model.named_modules():
         param_count = sum(p.numel() for p in module.parameters())
         trainable_param_count = sum(p.numel() for p in module.parameters() if p.requires_grad)
         logger.info(f"\n{name}:")
         logger.info(f"  Total params: {param_count:,}")
         logger.info(f"  Trainable params: {trainable_param_count:,}")
 
-        if isinstance(module, nn.Sequential):
-            for idx, layer in enumerate(module):
-                logger.info(f"  Layer {idx}:")
-                logger.info(f"    {layer}")
-                if isinstance(layer, nn.TransformerEncoderLayer):
-                    mha = layer.self_attn
-                    logger.info(f"    Attention Heads: {mha.num_heads}")
-                    logger.info(f"    Head Dimension: {mha.head_dim}")
-                elif isinstance(layer, nn.Linear):
-                    logger.info(f"    In features: {layer.in_features}")
-                    logger.info(f"    Out features: {layer.out_features}")
-
-        elif isinstance(module, nn.ModuleList):
-            logger.info(f"  Number of layers: {len(module)}")
-            if len(module) > 0:
-                logger.info(f"  Sample layer structure:")
-                logger.info(f"    {module[0]}")
-                if hasattr(module[0], 'self_attn'):
-                    mha = module[0].self_attn
-                    logger.info(
-                        f"    Attention Heads: {mha.num_heads if hasattr(mha, 'num_heads') else 'Not specified'}")
-                    logger.info(f"    Head Dimension: {mha.head_dim if hasattr(mha, 'head_dim') else 'Not specified'}")
+        if isinstance(module, nn.TransformerEncoderLayer):
+            mha = module.self_attn
+            logger.info(f"  Attention Heads: {mha.num_heads if hasattr(mha, 'num_heads') else 'Not specified'}")
+            logger.info(f"  Head Dimension: {mha.head_dim if hasattr(mha, 'head_dim') else 'Not specified'}")
+        elif isinstance(module, nn.Linear):
+            logger.info(f"  In features: {module.in_features}")
+            logger.info(f"  Out features: {module.out_features}")
 
     # Optional: If you want to log the model summary to a file
     with open('detailed_model_summary.txt', 'w') as f:
         f.write(str(model))
     logger.info("Detailed model summary has been saved to 'detailed_model_summary.txt'")
+    
