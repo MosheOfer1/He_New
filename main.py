@@ -33,6 +33,8 @@ def main():
                         help="Directory to save model checkpoints")
     parser.add_argument("--eval-split", type=float, default=0.1,
                         help="Proportion of data to use for evaluation")
+    parser.add_argument("--checkpoint", type=str, default=None,
+                        help="Path to a checkpoint file to resume training from")
 
     args = parser.parse_args()
 
@@ -59,7 +61,8 @@ def main():
               learning_rate=args.learning_rate,
               device=args.device,
               log_dir=args.log_dir,
-              save_dir=args.save_dir)
+              save_dir=args.save_dir,
+              checkpoint=args.checkpoint)
 
 
 if __name__ == "__main__":

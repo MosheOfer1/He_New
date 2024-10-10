@@ -6,7 +6,7 @@ from utils import print_progress_bar, print_model_info, setup_logger
 
 
 class Trainer:
-    def __init__(self, model, he_en_model, tokenizer, device, log_dir, save_dir):
+    def __init__(self, model, he_en_model, tokenizer, device, log_dir, save_dir, checkpoint):
         self.model = model.to(device)
         self.he_en_model = he_en_model.to(device)
         self.tokenizer = tokenizer
@@ -24,6 +24,19 @@ class Trainer:
 
         if not os.path.exists(save_dir):
             os.makedirs(save_dir)
+
+        self.start_epoch = 0
+        if checkpoint:
+            self.load_checkpoint(checkpoint)
+
+    def load_checkpoint(self, checkpoint_path):
+        self.logger.info(f"Loading checkpoint from {checkpoint_path}")
+        checkpoint = torch.load(checkpoint_path, map_location=self.device)
+        self.model.load_state_dict(checkpoint['model_state_dict'])
+        self.start_epoch = checkpoint['epoch'] + 1
+        self.best_eval_loss = checkpoint['loss']
+        self.logger.info(f"Loaded checkpoint from epoch {checkpoint['epoch']}")
+        return checkpoint['optimizer_state_dict'], checkpoint['scheduler_state_dict']
 
     def evaluate_batch(self, logits, targets):
         # Create a mask to ignore both start and pad tokens
@@ -131,7 +144,7 @@ class Trainer:
             self.logger.info(f"Model saved to {path}")
         torch.save(checkpoint, path)
 
-    def train(self, train_dataloader, eval_dataloader, num_epochs, learning_rate, display_interval=100):
+    def train(self, train_dataloader, eval_dataloader, num_epochs, learning_rate, checkpoint, display_interval):
         optimizer = torch.optim.AdamW([
             {'params': [p for n, p in self.model.named_parameters() if
                         'custom_layer' in n or n.startswith('output_projection')],
@@ -141,7 +154,12 @@ class Trainer:
         ])
         scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=num_epochs)
 
-        self.logger.info("Starting training...")
+        if self.start_epoch > 0:
+            optimizer_state_dict, scheduler_state_dict = self.load_checkpoint(checkpoint)
+            optimizer.load_state_dict(optimizer_state_dict)
+            scheduler.load_state_dict(scheduler_state_dict)
+
+        self.logger.info(f"Starting training from epoch {self.start_epoch + 1}")
         global_step = 0
 
         for epoch in range(num_epochs):
@@ -250,6 +268,6 @@ def create_opt_attention_mask(input_ids, padding_idx=1):
 
 
 def train_llm(model, train_dataloader, eval_dataloader, he_en_model, tokenizer, num_epochs, learning_rate, device,
-              log_dir, save_dir, display_interval=100):
-    trainer = Trainer(model, he_en_model, tokenizer, device, log_dir, save_dir)
-    trainer.train(train_dataloader, eval_dataloader, num_epochs, learning_rate, display_interval)
+              log_dir, save_dir, checkpoint, display_interval=100):
+    trainer = Trainer(model, he_en_model, tokenizer, device, log_dir, save_dir, checkpoint)
+    trainer.train(train_dataloader, eval_dataloader, num_epochs, learning_rate, checkpoint, display_interval)
