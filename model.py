@@ -1,6 +1,7 @@
 import torch
 import torch.nn as nn
 from torch.nn import TransformerEncoderLayer
+from transformers import MarianTokenizer
 
 
 class FactorizedEmbedding(nn.Module):
@@ -52,6 +53,9 @@ class CustomLLM(nn.Module):
 
         # English-Hebrew components
         self.en_he_model = en_he_model.model
+        self.he_en_tokenizer = MarianTokenizer.from_pretrained(he_en_model.name_or_path)
+        self.en_he_tokenizer = MarianTokenizer.from_pretrained(en_he_model.name_or_path)
+        self._align_embeddings()
 
         # Factorized output projection
         self.output_projection = FactorizedEmbedding(
@@ -130,6 +134,41 @@ class CustomLLM(nn.Module):
         for name, param in self.en_he_model.named_parameters():
             if 'embed' in name.lower() or isinstance(param, (nn.Embedding, nn.modules.sparse.Embedding)):
                 param.requires_grad = True
+
+    def _align_embeddings(self):
+        # Get vocabularies
+        vocab1 = self.he_en_tokenizer.get_vocab()
+        vocab2 = self.en_he_tokenizer.get_vocab()
+
+        # Create mapping between vocabularies
+        mapping = {}
+        for word, idx2 in vocab2.items():
+            if word in vocab1:
+                idx1 = vocab1[word]
+                mapping[idx2] = idx1
+
+        # Get original embedding layers
+        original_embeddings2 = self.en_he_model.get_input_embeddings()
+
+        # Create new embedding layer for en_he_model
+        new_embeddings2 = nn.Embedding(
+            num_embeddings=len(vocab2),
+            embedding_dim=original_embeddings2.embedding_dim,
+            padding_idx=original_embeddings2.padding_idx
+        )
+
+        # Copy and rearrange embeddings
+        with torch.no_grad():
+            for idx2, idx1 in mapping.items():
+                new_embeddings2.weight[idx1] = original_embeddings2.weight[idx2]
+
+            # For words not in the mapping, keep their original embeddings
+            for idx2 in range(len(vocab2)):
+                if idx2 not in mapping.values():
+                    new_embeddings2.weight[idx2] = original_embeddings2.weight[idx2]
+
+        # Replace the embedding layer in en_he_model
+        self.en_he_model.set_input_embeddings(new_embeddings2)
 
     def forward(self, input_ids, en_target_ids, he_attention_mask=None, en_attention_mask=None,
                 llm_attention_mask=None):
