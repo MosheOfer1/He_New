@@ -52,7 +52,8 @@ class CustomLLM(nn.Module):
 
         # English-Hebrew components
         self.en_he_model = en_he_model.model
-
+        self.en_he_model.set_input_embeddings(None)
+        
         # Factorized output projection
         self.output_projection = FactorizedEmbedding(
             en_he_model.config.hidden_size,
@@ -141,10 +142,11 @@ class CustomLLM(nn.Module):
         for layer in self.main_layers:
             x = layer(hidden_states=x, attention_mask=llm_attention_mask)[0]
 
+        # Phase 4: Custom Processing
         # Prepare the enhanced representation for the next phase
         inputs_embeds = self.custom_layer2(x)
 
-        # Phase 4: English to Hebrew Translation
+        # Phase 5: English to Hebrew Translation
         # Prepare the decoder input for the English-Hebrew model
         en_he_decoder_input_ids = torch.cat([
             torch.full((input_ids.shape[0], 1), self.en_he_model.decoder.config.decoder_start_token_id,
