@@ -180,7 +180,7 @@ class Trainer:
             optimizer.load_state_dict(optimizer_state_dict)
             scheduler.load_state_dict(scheduler_state_dict)
 
-        self.logger.info(f"Starting training from epoch {self.start_epoch + 1}")
+        self.logger.info(f"Starting training from epoch {self.start_epoch}")
         global_step = 0
 
         for epoch in range(num_epochs):
@@ -205,7 +205,6 @@ class Trainer:
                     he_attention_mask=he_attention_mask,
                     en_attention_mask=en_attention_mask,
                     llm_attention_mask=llm_attention_mask
-
                 )
 
                 # Create a mask to ignore both start and pad tokens
@@ -232,7 +231,7 @@ class Trainer:
                                      f"Perplexity: {batch_metrics[2]:.4f}")
 
                 if global_step % display_interval == 0:
-                    self.log_prediction(batch_x, batch_y, en_translation, logits, global_step)
+                    self.log_prediction(batch_x, batch_y, en_translation, filtered_logits, global_step)
 
                 print_progress_bar(i + 1, len(train_dataloader), epoch + 1, num_epochs,
                                    prefix='Training:', suffix=f'Loss: {loss.item():.4f}', length=30)
