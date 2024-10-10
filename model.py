@@ -19,8 +19,7 @@ class CustomLLM(nn.Module):
         super().__init__()
 
         # Hebrew-English components
-        self.he_en_encoder = he_en_model.model.encoder
-        self.he_en_decoder = he_en_model.model.decoder
+        self.he_en_model = he_en_model.model
 
         # First custom transformer layer
         self.custom_layer1 = nn.Sequential(
@@ -52,8 +51,7 @@ class CustomLLM(nn.Module):
         )
 
         # English-Hebrew components
-        self.en_he_encoder = en_he_model.model.encoder
-        self.en_he_decoder = en_he_model.model.decoder
+        self.en_he_model = en_he_model.model
 
         # Factorized output projection
         self.output_projection = FactorizedEmbedding(
@@ -100,16 +98,14 @@ class CustomLLM(nn.Module):
                 param.requires_grad = False
 
         # Freeze Hebrew-English components
-        freeze_module(self.he_en_encoder)
-        freeze_module(self.he_en_decoder)
+        freeze_module(self.he_en_model)
 
         # Freeze LLM layers
         for layer in self.main_layers:
             freeze_module(layer)
 
         # Freeze English-Hebrew components
-        freeze_module(self.en_he_encoder)
-        freeze_module(self.en_he_decoder)
+        freeze_module(self.en_he_model)
 
         # Ensure custom layers are trainable
         for param in self.custom_layer1.parameters():
@@ -121,48 +117,51 @@ class CustomLLM(nn.Module):
         for param in self.output_projection.parameters():
             param.requires_grad = True
 
-    def forward(self, input_ids, en_target_ids, he_attention_mask=None, en_attention_mask=None, llm_attention_mask=None):
-        # Ensure input_ids is of type Long
+    def forward(self, input_ids, en_target_ids, he_attention_mask=None, en_attention_mask=None,
+                llm_attention_mask=None):
+        # Ensure input tensors are of the correct data type
         input_ids = input_ids.long()
         en_target_ids = en_target_ids.long()
 
-        # 1. Hebrew-English encoding
-        encoder_output = self.he_en_encoder(input_ids=input_ids, attention_mask=he_attention_mask).last_hidden_state
-
-        # 2. Hebrew-English decoding with teacher forcing
-        he_en_decoder_output = self.he_en_decoder(
-            input_ids=en_target_ids,
-            encoder_hidden_states=encoder_output,
-            attention_mask=en_attention_mask
+        # Phase 1: Hebrew to English Translation
+        # Process the input through the Hebrew-English model
+        he_en_decoder_output = self.he_en_model(
+            input_ids=input_ids,
+            attention_mask=he_attention_mask,
+            decoder_input_ids=en_target_ids,
+            decoder_attention_mask=en_attention_mask,
         ).last_hidden_state
 
-        # 3. First custom layer
+        # Phase 2: Custom Processing
+        # Apply the first custom layer to refine the translation output
         x = self.custom_layer1(he_en_decoder_output)
 
-        # 4. LLM processing
+        # Phase 3: Language Model Enhancement
+        # Pass the refined output through the main language model layers
         for layer in self.main_layers:
             x = layer(hidden_states=x, attention_mask=llm_attention_mask)[0]
 
-        # 5. Second custom layer
-        x = self.custom_layer2(x)
+        # Prepare the enhanced representation for the next phase
+        inputs_embeds = self.custom_layer2(x)
 
-        # 6. English-Hebrew encoding
-        en_he_encoder_output = self.en_he_encoder(inputs_embeds=x, attention_mask=en_attention_mask).last_hidden_state
-
-        # 7. English-Hebrew decoding with teacher forcing
+        # Phase 4: English to Hebrew Translation
+        # Prepare the decoder input for the English-Hebrew model
         en_he_decoder_input_ids = torch.cat([
-            torch.full((input_ids.shape[0], 1), self.en_he_decoder.config.decoder_start_token_id,
+            torch.full((input_ids.shape[0], 1), self.en_he_model.decoder.config.decoder_start_token_id,
                        device=input_ids.device),
             input_ids[:, :-1]
         ], dim=1)
 
-        final_output = self.en_he_decoder(
-            input_ids=en_he_decoder_input_ids,
-            encoder_hidden_states=en_he_encoder_output,
-            attention_mask=he_attention_mask  # Use Hebrew attention mask for decoding
+        # Process the enhanced representation through the English-Hebrew model
+        final_output = self.en_he_model(
+            inputs_embeds=inputs_embeds,
+            attention_mask=en_attention_mask,
+            decoder_input_ids=en_he_decoder_input_ids,
+            decoder_attention_mask=he_attention_mask,
         ).last_hidden_state
 
-        # 8. Final projection
+        # Phase 5: Final Output Generation
+        # Project the final hidden states to the output vocabulary space
         logits = self.output_projection(final_output)
 
         return logits
