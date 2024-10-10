@@ -7,6 +7,8 @@ from utils import print_progress_bar, print_model_info, setup_logger
 
 class Trainer:
     def __init__(self, model, he_en_model, tokenizer, device, log_dir, save_dir, checkpoint):
+        self.scheduler_state_dict = None
+        self.optimizer_state_dict = None
         self.model = model.to(device)
         self.he_en_model = he_en_model.to(device)
         self.tokenizer = tokenizer
@@ -36,7 +38,7 @@ class Trainer:
         self.start_epoch = checkpoint['epoch'] + 1
         self.best_eval_loss = checkpoint['loss']
         self.logger.info(f"Loaded checkpoint from epoch {checkpoint['epoch']}")
-        return checkpoint['optimizer_state_dict'], checkpoint['scheduler_state_dict']
+        self.optimizer_state_dict, self.scheduler_state_dict = checkpoint['optimizer_state_dict'], checkpoint['scheduler_state_dict']
 
     def evaluate_batch(self, logits, targets):
         # Create a mask to ignore both start and pad tokens
@@ -174,7 +176,7 @@ class Trainer:
         scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=num_epochs)
 
         if self.start_epoch > 0:
-            optimizer_state_dict, scheduler_state_dict = self.load_checkpoint(checkpoint)
+            optimizer_state_dict, scheduler_state_dict = self.optimizer_state_dict, self.scheduler_state_dict
             optimizer.load_state_dict(optimizer_state_dict)
             scheduler.load_state_dict(scheduler_state_dict)
 
