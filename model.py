@@ -52,8 +52,7 @@ class CustomLLM(nn.Module):
 
         # English-Hebrew components
         self.en_he_model = en_he_model.model
-        self.en_he_model.set_input_embeddings(None)
-        
+
         # Factorized output projection
         self.output_projection = FactorizedEmbedding(
             en_he_model.config.hidden_size,
