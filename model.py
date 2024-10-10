@@ -213,7 +213,7 @@ class CustomLLM(nn.Module):
         en_he_decoder_input_ids = torch.cat([
             torch.full((input_ids.shape[0], 1), self.en_he_model.decoder.config.decoder_start_token_id,
                        device=input_ids.device),
-            input_ids[:, :-1]
+            input_ids[:, 1:]
         ], dim=1)
 
         # Process the enhanced representation through the English-Hebrew model
