@@ -68,6 +68,31 @@ class CustomLLM(nn.Module):
         # Freeze layers
         self._freeze_layers()
 
+    @classmethod
+    def load_pretrained(cls, checkpoint_path, he_en_model, en_he_model, llm_model, device):
+        checkpoint = torch.load(checkpoint_path, map_location=device)
+
+        if 'model_state_dict' in checkpoint:
+            # This is a checkpoint saved by our Trainer
+            state_dict = checkpoint['model_state_dict']
+        elif isinstance(checkpoint, dict) and 'state_dict' in checkpoint:
+            # This might be a checkpoint saved by pytorch-lightning or other libraries
+            state_dict = checkpoint['state_dict']
+        else:
+            # Assume it's just the state dict
+            state_dict = checkpoint
+
+        # Create a new instance of CustomLLM
+        vocab_size = state_dict['output_projection.weight'].size(0)
+        bottleneck_size = state_dict['factorized_embedding.0.weight'].size(1)
+
+        model = cls(he_en_model, en_he_model, llm_model, vocab_size, bottleneck_size)
+
+        # Load the state dict
+        model.load_state_dict(state_dict)
+
+        return model.to(device)
+
     def _freeze_layers(self):
         # Helper function to freeze all parameters in a module
         def freeze_module(module):

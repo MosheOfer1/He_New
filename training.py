@@ -122,11 +122,30 @@ class Trainer:
         target_text = self.tokenizer.decode(target_sequence, skip_special_tokens=False)
         en_text = self.tokenizer.decode(en_sequence, skip_special_tokens=False)
 
-        self.logger.info(f"\nStep {step}, Prediction vs Actual:")
+        self.logger.info(f"Step {step}, Prediction vs Actual:")
         self.logger.info(f"Input (Hebrew): {input_text}")
         self.logger.info(f"Intermediate (English): {en_text}")
         self.logger.info(f"Predicted (Hebrew): {predicted_text}")
         self.logger.info(f"Actual (Hebrew): {target_text}")
+
+        # Token-wise comparison
+        predicted_tokens = self.tokenizer.convert_ids_to_tokens(predicted_ids)
+        target_tokens = self.tokenizer.convert_ids_to_tokens(target_sequence)
+
+        # Ensure both sequences have the same length for comparison
+        max_length = max(len(predicted_tokens), len(target_tokens))
+        predicted_tokens = predicted_tokens + [''] * (max_length - len(predicted_tokens))
+        target_tokens = target_tokens + [''] * (max_length - len(target_tokens))
+
+        # Create comparison table
+        table = "| Index | Predicted Token | Actual Token | Match |\n"
+        table += "|-------|-----------------|--------------|-------|\n"
+        for i, (pred, target) in enumerate(zip(predicted_tokens, target_tokens)):
+            match = "✓" if pred == target else "✗"
+            table += f"| {i:5d} | {pred:15s} | {target:12s} | {match:5s} |\n"
+
+        self.logger.info("Token-wise comparison:")
+        self.logger.info("\n" + table)
 
     def save_checkpoint(self, epoch, optimizer, scheduler, loss, is_best=False):
         checkpoint = {

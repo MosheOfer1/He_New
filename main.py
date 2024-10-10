@@ -33,8 +33,12 @@ def main():
                         help="Directory to save model checkpoints")
     parser.add_argument("--eval-split", type=float, default=0.1,
                         help="Proportion of data to use for evaluation")
+    parser.add_argument("--display-interval", type=int, default=100,
+                        help="Display interval to log the last sentence in the batch")
     parser.add_argument("--checkpoint", type=str, default=None,
                         help="Path to a checkpoint file to resume training from")
+    parser.add_argument("--pretrained-model", type=str, default=None,
+                        help="Path to a pretrained CustomLLM model to load and fine-tune")
 
     args = parser.parse_args()
 
@@ -51,9 +55,13 @@ def main():
 
     # Create dataloaders
     train_dataloader, eval_dataloader = create_dataloaders(dataset, args.batch_size)
-
-    # Create custom LLM
-    custom_llm = CustomLLM(he_en_model, en_he_model, llm_model, len(tokenizer), args.bottleneck_size)
+    if args.pretrained_model:
+        # Load the pretrained CustomLLM
+        print(f"Loading pretrained model from {args.pretrained_model}")
+        custom_llm = CustomLLM.load_pretrained(args.pretrained_model, he_en_model, en_he_model, llm_model, args.device)
+    else:
+        # Create a new CustomLLM
+        custom_llm = CustomLLM(he_en_model, en_he_model, llm_model, len(tokenizer), args.bottleneck_size)
 
     # Train the model
     train_llm(custom_llm, train_dataloader, eval_dataloader, he_en_model, tokenizer,
@@ -62,7 +70,8 @@ def main():
               device=args.device,
               log_dir=args.log_dir,
               save_dir=args.save_dir,
-              checkpoint=args.checkpoint)
+              checkpoint=args.checkpoint,
+              display_interval=args.display_interval)
 
 
 if __name__ == "__main__":
