@@ -77,14 +77,10 @@ class Trainer:
                 # Create new attention mask for the English translation
                 en_attention_mask = (en_translation != self.tokenizer.pad_token_id).float()
 
-                # Create OPT attention mask for the LLM
-                llm_attention_mask = create_opt_attention_mask(en_translation, self.tokenizer.pad_token_id)
-
                 logits = self.model(
                     batch_x, en_translation,
                     he_attention_mask=he_attention_mask,
                     en_attention_mask=en_attention_mask,
-                    llm_attention_mask=llm_attention_mask
                 )
 
                 # Create a mask to ignore both start and pad tokens
@@ -192,15 +188,11 @@ class Trainer:
                     # Create new attention mask for the English translation
                     en_attention_mask = (en_translation != self.tokenizer.pad_token_id).float()
 
-                    # Create OPT attention mask for the LLM
-                    llm_attention_mask = create_opt_attention_mask(en_translation, self.tokenizer.pad_token_id)
-
                 optimizer.zero_grad()
                 logits = self.model(
                     batch_x, en_translation,
                     he_attention_mask=he_attention_mask,
                     en_attention_mask=en_attention_mask,
-                    llm_attention_mask=llm_attention_mask
                 )
 
                 # Create a mask to ignore both start and pad tokens
@@ -253,35 +245,35 @@ class Trainer:
 
         self.logger.info("Training completed!")
 
-
-def create_opt_attention_mask(input_ids, padding_idx=1):
-    """
-    Create a causal attention mask for the OPT model.
-
-    Args:
-    input_ids (torch.Tensor): Input tensor of shape (batch_size, sequence_length)
-    padding_idx (int): The index used for padding, default is 1 for OPT models
-
-    Returns:
-    torch.Tensor: Attention mask of shape (batch_size, 1, sequence_length, sequence_length)
-    """
-    batch_size, seq_length = input_ids.size()
-
-    # Create a mask for padding tokens
-    padding_mask = (input_ids != padding_idx).long()
-
-    # Create a causal mask
-    causal_mask = torch.tril(torch.ones((seq_length, seq_length), device=input_ids.device))
-
-    # Combine padding mask and causal mask
-    attention_mask = padding_mask.unsqueeze(1).unsqueeze(2) * causal_mask.unsqueeze(0)
-
-    # OPT models typically expect the attention mask to have values 0 for attended positions and -10000 for masked positions
-    attention_mask = attention_mask.float().masked_fill(attention_mask == 0, float('-inf')).masked_fill(
-        attention_mask == 1, 0.0)
-
-    return attention_mask
-
+#
+# def create_opt_attention_mask(input_ids, padding_idx=1):
+#     """
+#     Create a causal attention mask for the OPT model.
+#
+#     Args:
+#     input_ids (torch.Tensor): Input tensor of shape (batch_size, sequence_length)
+#     padding_idx (int): The index used for padding, default is 1 for OPT models
+#
+#     Returns:
+#     torch.Tensor: Attention mask of shape (batch_size, 1, sequence_length, sequence_length)
+#     """
+#     batch_size, seq_length = input_ids.size()
+#
+#     # Create a mask for padding tokens
+#     padding_mask = (input_ids != padding_idx).long()
+#
+#     # Create a causal mask
+#     causal_mask = torch.tril(torch.ones((seq_length, seq_length), device=input_ids.device))
+#
+#     # Combine padding mask and causal mask
+#     attention_mask = padding_mask.unsqueeze(1).unsqueeze(2) * causal_mask.unsqueeze(0)
+#
+#     # OPT models typically expect the attention mask to have values 0 for attended positions and -10000 for masked positions
+#     attention_mask = attention_mask.float().masked_fill(attention_mask == 0, float('-inf')).masked_fill(
+#         attention_mask == 1, 0.0)
+#
+#     return attention_mask
+#
 
 def train_llm(model, train_dataloader, eval_dataloader, he_en_model, tokenizer, num_epochs, learning_rate, device,
               log_dir, save_dir, checkpoint, display_interval=100):

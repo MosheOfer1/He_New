@@ -3,6 +3,8 @@ import torch.nn as nn
 from torch.nn import TransformerEncoderLayer
 from transformers import MarianTokenizer
 
+from utils import create_opt_attention_mask
+
 
 class FactorizedEmbedding(nn.Module):
     def __init__(self, hidden_size, vocab_size, bottleneck_size):
@@ -53,8 +55,6 @@ class CustomLLM(nn.Module):
 
         # English-Hebrew components
         self.en_he_model = en_he_model.model
-        self.he_en_tokenizer = MarianTokenizer.from_pretrained(he_en_model.name_or_path)
-        self.en_he_tokenizer = MarianTokenizer.from_pretrained(en_he_model.name_or_path)
         self._align_embeddings()
 
         # Factorized output projection
@@ -136,9 +136,13 @@ class CustomLLM(nn.Module):
                 param.requires_grad = True
 
     def _align_embeddings(self):
+        # Get tokenizers
+        he_en_tokenizer = MarianTokenizer.from_pretrained(self.he_en_model.name_or_path)
+        en_he_tokenizer = MarianTokenizer.from_pretrained(self.en_he_model.name_or_path)
+
         # Get vocabularies
-        vocab1 = self.he_en_tokenizer.get_vocab()
-        vocab2 = self.en_he_tokenizer.get_vocab()
+        vocab1 = he_en_tokenizer.get_vocab()
+        vocab2 = en_he_tokenizer.get_vocab()
 
         # Create mapping between vocabularies
         mapping = {}
@@ -170,8 +174,7 @@ class CustomLLM(nn.Module):
         # Replace the embedding layer in en_he_model
         self.en_he_model.set_input_embeddings(new_embeddings2)
 
-    def forward(self, input_ids, en_target_ids, he_attention_mask=None, en_attention_mask=None,
-                llm_attention_mask=None):
+    def forward(self, input_ids, en_target_ids, he_attention_mask=None, en_attention_mask=None):
         # Ensure input tensors are of the correct data type
         input_ids = input_ids.long()
         en_target_ids = en_target_ids.long()
@@ -189,8 +192,15 @@ class CustomLLM(nn.Module):
         # Apply the first custom layer to refine the translation output
         x = self.custom_layer1(he_en_decoder_output)
 
-        # Phase 3: Language Model Enhancement
-        # Pass the refined output through the main language model layers
+        # Phase 3: Pass the refined output through the main language model layers
+        # Create OPT attention mask for the LLM
+        llm_attention_mask = create_opt_attention_mask(
+            attention_mask=en_attention_mask,
+            input_shape=x.shape[:-1],
+            inputs_embeds=x,
+            past_key_values_length=0
+        )
+
         for layer in self.main_layers:
             x = layer(hidden_states=x, attention_mask=llm_attention_mask)[0]
 
