@@ -92,22 +92,29 @@ class CustomLLM(nn.Module):
         return model.to(device)
 
     def _freeze_layers(self):
-        # Helper function to freeze all parameters in a module
         def freeze_module(module):
             for param in module.parameters():
                 param.requires_grad = False
+
+        def freeze_module_except_embeddings(module):
+            for name, submodule in module.named_children():
+                if isinstance(submodule, (nn.Embedding, nn.modules.sparse.Embedding)) or 'embed' in name.lower():
+                    continue  # Skip freezing this submodule
+                elif list(submodule.children()):  # If the submodule has children
+                    freeze_module_except_embeddings(submodule)  # Recurse
+                else:
+                    for param in submodule.parameters():
+                        param.requires_grad = False
 
         # Freeze Hebrew-English components
         freeze_module(self.he_en_model)
 
         # Freeze LLM layers
         for layer in self.main_layers:
-            freeze_module(layer)
+            freeze_module_except_embeddings(layer)
 
         # Freeze English-Hebrew components, except for embeddings
-        for name, module in self.en_he_model.named_children():
-            if 'embed' not in name.lower():  # Don't freeze embedding layers
-                freeze_module(module)
+        freeze_module_except_embeddings(self.en_he_model)
 
         # Ensure custom layers are trainable
         for param in self.custom_layer1.parameters():
@@ -119,9 +126,9 @@ class CustomLLM(nn.Module):
         for param in self.output_projection.parameters():
             param.requires_grad = True
 
-        # Double-check that embeddings are trainable
+        # Double-check that all embeddings are trainable
         for name, param in self.en_he_model.named_parameters():
-            if 'embed' in name.lower():
+            if 'embed' in name.lower() or isinstance(param, (nn.Embedding, nn.modules.sparse.Embedding)):
                 param.requires_grad = True
 
     def forward(self, input_ids, en_target_ids, he_attention_mask=None, en_attention_mask=None,

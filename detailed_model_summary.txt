@@ -93,9 +93,9 @@ CustomLLM(
     (1): Linear(in_features=1024, out_features=512, bias=True)
   )
   (en_he_model): MarianModel(
-    (shared): None
+    (shared): Embedding(65839, 512, padding_idx=65838)
     (encoder): MarianEncoder(
-      (embed_tokens): None
+      (embed_tokens): Embedding(65839, 512, padding_idx=65838)
       (embed_positions): MarianSinusoidalPositionalEmbedding(512, 512)
       (layers): ModuleList(
         (0-5): 6 x MarianEncoderLayer(
@@ -114,7 +114,7 @@ CustomLLM(
       )
     )
     (decoder): MarianDecoder(
-      (embed_tokens): None
+      (embed_tokens): Embedding(65839, 512, padding_idx=65838)
       (embed_positions): MarianSinusoidalPositionalEmbedding(512, 512)
       (layers): ModuleList(
         (0-5): 6 x MarianDecoderLayer(
