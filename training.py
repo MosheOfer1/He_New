@@ -51,10 +51,26 @@ class Trainer:
         self.model.eval()
         total_loss, total_correct, total_tokens = 0, 0, 0
         with torch.no_grad():
-            for batch_x, batch_y in dataloader:
-                batch_x, batch_y = batch_x.to(self.device), batch_y.to(self.device)
-                en_translation = self.he_en_model.generate(batch_x)
-                logits = self.model(batch_x, en_translation, batch_y)
+            for batch in dataloader:
+                # Unpack the batch correctly
+                batch_x, batch_y, he_attention_mask = batch
+                batch_x, batch_y, he_attention_mask = batch_x.to(self.device), batch_y.to(
+                    self.device), he_attention_mask.to(self.device)
+
+                en_translation = self.he_en_model.generate(batch_x, attention_mask=he_attention_mask)
+
+                # Create new attention mask for the English translation
+                en_attention_mask = (en_translation != self.tokenizer.pad_token_id).float()
+
+                # Create OPT attention mask for the LLM
+                llm_attention_mask = create_opt_attention_mask(en_translation, self.tokenizer.pad_token_id)
+
+                logits = self.model(
+                    batch_x, en_translation,
+                    he_attention_mask=he_attention_mask,
+                    en_attention_mask=en_attention_mask,
+                    llm_attention_mask=llm_attention_mask
+                )
 
                 # Create a mask to ignore both start and pad tokens
                 ignore_mask = (batch_y != self.start_token_id) & (batch_y != self.pad_token_id)
