@@ -231,7 +231,7 @@ class Trainer:
                                      f"Perplexity: {batch_metrics[2]:.4f}")
 
                 if global_step % display_interval == 0:
-                    self.log_prediction(batch_x, batch_y, en_translation, filtered_logits, global_step)
+                    self.log_prediction(batch_x, batch_y, en_translation, logits, global_step)
 
                 print_progress_bar(i + 1, len(train_dataloader), epoch + 1, num_epochs,
                                    prefix='Training:', suffix=f'Loss: {loss.item():.4f}', length=30)
