@@ -15,38 +15,38 @@ class FactorizedEmbedding(nn.Module):
 
 
 class CustomLLM(nn.Module):
-    def __init__(self, he_en_model, en_he_model, llm_model, vocab_size, bottleneck_size):
+    def __init__(self, he_en_model, en_he_model, llm_model, vocab_size, bottleneck_size, custom_layers=3):
         super().__init__()
 
         # Hebrew-English components
         self.he_en_model = he_en_model.model
 
-        # First custom transformer layer
+        # First custom transformer layers
         self.custom_layer1 = nn.Sequential(
             nn.Linear(he_en_model.config.hidden_size, llm_model.config.hidden_size),
-            TransformerEncoderLayer(
+            *[TransformerEncoderLayer(
                 d_model=llm_model.config.hidden_size,
                 nhead=llm_model.config.num_attention_heads,
                 dim_feedforward=llm_model.config.ffn_dim,
                 dropout=llm_model.config.dropout,
                 activation="relu",
                 batch_first=True
-            )
+            ) for _ in range(custom_layers)]
         )
 
         # LLM layers (main body of the model)
         self.main_layers = llm_model.model.decoder.layers
 
-        # Second custom transformer layer
+        # Second custom transformer layers
         self.custom_layer2 = nn.Sequential(
-            TransformerEncoderLayer(
+            *[TransformerEncoderLayer(
                 d_model=llm_model.config.hidden_size,
                 nhead=llm_model.config.num_attention_heads,
                 dim_feedforward=llm_model.config.ffn_dim,
                 dropout=llm_model.config.dropout,
                 activation="relu",
                 batch_first=True
-            ),
+            ) for _ in range(custom_layers)],
             nn.Linear(llm_model.config.hidden_size, en_he_model.config.hidden_size)
         )
 
