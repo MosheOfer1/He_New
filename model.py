@@ -104,8 +104,10 @@ class CustomLLM(nn.Module):
         for layer in self.main_layers:
             freeze_module(layer)
 
-        # Freeze English-Hebrew components
-        freeze_module(self.en_he_model)
+        # Freeze English-Hebrew components, except for embeddings
+        for name, module in self.en_he_model.named_children():
+            if 'embed' not in name.lower():  # Don't freeze embedding layers
+                freeze_module(module)
 
         # Ensure custom layers are trainable
         for param in self.custom_layer1.parameters():
@@ -116,6 +118,11 @@ class CustomLLM(nn.Module):
         # Ensure output projection is trainable
         for param in self.output_projection.parameters():
             param.requires_grad = True
+
+        # Double-check that embeddings are trainable
+        for name, param in self.en_he_model.named_parameters():
+            if 'embed' in name.lower():
+                param.requires_grad = True
 
     def forward(self, input_ids, en_target_ids, he_attention_mask=None, en_attention_mask=None,
                 llm_attention_mask=None):
