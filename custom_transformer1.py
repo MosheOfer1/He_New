@@ -115,6 +115,7 @@ def train_custom_layer1(translator_model, custom_layer1, llm_model, train_datalo
             batch_x, attention_mask = batch_x.to(device), attention_mask.to(device)
 
             with torch.no_grad():
+                translator_model.config.output_hidden_states = True
                 # Hebrew to English translation
                 translated_output = translator_model.generate(
                     input_ids=batch_x,
@@ -156,7 +157,9 @@ def train_custom_layer1(translator_model, custom_layer1, llm_model, train_datalo
                     decoder_input_ids=decoder_input_ids,
                     attention_mask=attention_mask,
                     decoder_attention_mask=decoder_attention_mask
-                ).last_hidden_state
+                )
+
+                translator_last_hidden = translator_last_hidden.decoder_hidden_states[-1]
 
             optimizer.zero_grad()
             custom_output = custom_layer1(translator_last_hidden)

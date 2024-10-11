@@ -186,8 +186,8 @@ class CustomLLM(nn.Module):
             attention_mask=he_attention_mask,
             decoder_input_ids=en_target_ids,
             decoder_attention_mask=en_attention_mask,
-        ).last_hidden_state
-
+        )
+        he_en_decoder_output = he_en_decoder_output.last_hidden_state
         # Phase 2: Custom Processing
         # Apply the first custom layer to refine the translation output
         x = self.custom_layer1(he_en_decoder_output)
