@@ -21,7 +21,7 @@ class ModifiedLLM(nn.Module):
         inputs_embeds = self.model.model.decoder.embed_tokens(input_ids)
 
         # Add positional embeddings
-        pos_embeds = self.model.model.decoder.embed_positions(input_ids)
+        pos_embeds = self.model.model.decoder.embed_positions(attention_mask, 0)
         hidden_states = inputs_embeds + pos_embeds
 
         # Return the hidden states after embeddings
@@ -105,7 +105,6 @@ def train_custom_layer1(translator_model, custom_layer1, llm_model, train_datalo
     modified_llm = ModifiedLLM(llm_model).to(device)
 
     logger.info("Starting training of CustomLayer1")
-    logger.info(f"Custom Layer Architecture:\n{custom_layer1}")
 
     total_steps = len(train_dataloader)
     for epoch in range(num_epochs):
