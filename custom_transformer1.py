@@ -156,10 +156,7 @@ def train_custom_layer1(translator_model, custom_layer1, llm_model, train_datalo
                     decoder_input_ids=decoder_input_ids,
                     attention_mask=attention_mask,
                     decoder_attention_mask=decoder_attention_mask
-                )
-
-                print(translator_last_hidden)
-                translator_last_hidden = translator_last_hidden.last_hidden_state
+                ).decoder_last_hidden_state
 
             optimizer.zero_grad()
             custom_output = custom_layer1(translator_last_hidden)
