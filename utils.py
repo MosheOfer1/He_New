@@ -99,7 +99,7 @@ def print_model_info(model, logger):
                     logger.info(f"    Head Dimension: {mha.head_dim if hasattr(mha, 'head_dim') else 'Not specified'}")
 
     # Optional: If you want to log the model summary to a file
-    with open('detailed_model_summary.txt', 'w') as f:
+    with open('logs/detailed_model_summary.txt', 'w') as f:
         f.write(str(model))
     logger.info("Detailed model summary has been saved to 'detailed_model_summary.txt'")
 

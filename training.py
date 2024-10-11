@@ -31,15 +31,6 @@ class Trainer:
         if checkpoint:
             self.load_checkpoint(checkpoint)
 
-    def load_checkpoint(self, checkpoint_path):
-        self.logger.info(f"Loading checkpoint from {checkpoint_path}")
-        checkpoint = torch.load(checkpoint_path, map_location=self.device)
-        self.model.load_state_dict(checkpoint['model_state_dict'])
-        self.start_epoch = checkpoint['epoch'] + 1
-        self.best_eval_loss = checkpoint['loss']
-        self.logger.info(f"Loaded checkpoint from epoch {checkpoint['epoch']}")
-        self.optimizer_state_dict, self.scheduler_state_dict = checkpoint['optimizer_state_dict'], checkpoint['scheduler_state_dict']
-
     def evaluate_batch(self, logits, targets):
         # Create a mask to ignore both start and pad tokens
         ignore_mask = (targets != self.start_token_id) & (targets != self.pad_token_id)
@@ -141,6 +132,15 @@ class Trainer:
         self.logger.info("Token-wise comparison:")
         self.logger.info("\n" + table)
 
+    def log_gradients(self, model):
+        total_norm = 0
+        for p in model.parameters():
+            if p.grad is not None:
+                param_norm = p.grad.data.norm(2)
+                total_norm += param_norm.item() ** 2
+        total_norm = total_norm ** 0.5
+        self.logger.info(f"Gradient norm: {total_norm:.4f}")
+
     def save_checkpoint(self, epoch, optimizer, scheduler, loss, is_best=False):
         checkpoint = {
             'epoch': epoch,
@@ -157,7 +157,17 @@ class Trainer:
             self.logger.info(f"Model saved to {path}")
         torch.save(checkpoint, path)
 
-    def train(self, train_dataloader, eval_dataloader, num_epochs, learning_rate, checkpoint, display_interval):
+    def load_checkpoint(self, checkpoint_path):
+        self.logger.info(f"Loading checkpoint from {checkpoint_path}")
+        checkpoint = torch.load(checkpoint_path, map_location=self.device)
+        self.model.load_state_dict(checkpoint['model_state_dict'])
+        self.start_epoch = checkpoint['epoch'] + 1
+        self.best_eval_loss = checkpoint['loss']
+        self.logger.info(f"Loaded checkpoint from epoch {checkpoint['epoch']}")
+        self.optimizer_state_dict, self.scheduler_state_dict = checkpoint['optimizer_state_dict'], checkpoint[
+            'scheduler_state_dict']
+
+    def train(self, train_dataloader, eval_dataloader, num_epochs, learning_rate, display_interval):
         optimizer = torch.optim.AdamW([
             {'params': [p for n, p in self.model.named_parameters() if
                         'custom_layer' in n or n.startswith('output_projection')],
@@ -220,6 +230,12 @@ class Trainer:
 
                 if global_step % display_interval == 0:
                     self.log_prediction(batch_x, batch_y, en_translation, logits, global_step)
+                    # Log learning rates
+                    for idx, param_group in enumerate(optimizer.param_groups):
+                        self.logger.info(f"Learning rate (group {idx}): {param_group['lr']:.6f}")
+
+                    # Log gradients
+                    self.log_gradients(self.model)
 
                 print_progress_bar(i + 1, len(train_dataloader), epoch + 1, num_epochs,
                                    prefix='Training:', suffix=f'Loss: {loss.item():.4f}', length=30)
@@ -245,37 +261,8 @@ class Trainer:
 
         self.logger.info("Training completed!")
 
-#
-# def create_opt_attention_mask(input_ids, padding_idx=1):
-#     """
-#     Create a causal attention mask for the OPT model.
-#
-#     Args:
-#     input_ids (torch.Tensor): Input tensor of shape (batch_size, sequence_length)
-#     padding_idx (int): The index used for padding, default is 1 for OPT models
-#
-#     Returns:
-#     torch.Tensor: Attention mask of shape (batch_size, 1, sequence_length, sequence_length)
-#     """
-#     batch_size, seq_length = input_ids.size()
-#
-#     # Create a mask for padding tokens
-#     padding_mask = (input_ids != padding_idx).long()
-#
-#     # Create a causal mask
-#     causal_mask = torch.tril(torch.ones((seq_length, seq_length), device=input_ids.device))
-#
-#     # Combine padding mask and causal mask
-#     attention_mask = padding_mask.unsqueeze(1).unsqueeze(2) * causal_mask.unsqueeze(0)
-#
-#     # OPT models typically expect the attention mask to have values 0 for attended positions and -10000 for masked positions
-#     attention_mask = attention_mask.float().masked_fill(attention_mask == 0, float('-inf')).masked_fill(
-#         attention_mask == 1, 0.0)
-#
-#     return attention_mask
-#
 
 def train_llm(model, train_dataloader, eval_dataloader, he_en_model, tokenizer, num_epochs, learning_rate, device,
               log_dir, save_dir, checkpoint, display_interval=100):
     trainer = Trainer(model, he_en_model, tokenizer, device, log_dir, save_dir, checkpoint)
-    trainer.train(train_dataloader, eval_dataloader, num_epochs, learning_rate, checkpoint, display_interval)
+    trainer.train(train_dataloader, eval_dataloader, num_epochs, learning_rate, display_interval)
