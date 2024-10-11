@@ -7,7 +7,8 @@ from torch.utils.data import DataLoader, Dataset
 from transformers import MarianMTModel, MarianTokenizer, OPTForCausalLM, AutoTokenizer
 from torch.nn import TransformerEncoderLayer
 import argparse
-
+import torch.nn.functional as F
+from torch.nn.utils.rnn import pad_sequence
 from utils import print_progress_bar, setup_logger
 
 
@@ -72,8 +73,8 @@ def collate_fn(batch, pad_token_id):
     attention_mask = [item['attention_mask'].squeeze() for item in batch]
 
     # Pad sequences with the translator's padding token
-    input_ids = nn.utils.rnn.pad_sequence(input_ids, batch_first=True, padding_value=pad_token_id)
-    attention_mask = nn.utils.rnn.pad_sequence(attention_mask, batch_first=True, padding_value=0)
+    input_ids = pad_sequence(input_ids, batch_first=True, padding_value=pad_token_id)
+    attention_mask = pad_sequence(attention_mask, batch_first=True, padding_value=0)
 
     return input_ids, attention_mask
 
@@ -100,7 +101,7 @@ def train_custom_layer1(translator_model, custom_layer1, llm_model, train_datalo
     translator_model.to(device)
     llm_model.to(device)
     optimizer = optim.Adam(custom_layer1.parameters(), lr=learning_rate)
-    criterion = nn.MSELoss()
+    kl_loss = nn.KLDivLoss(reduction="none")
 
     # Wrap the LLM with our modified version
     modified_llm = ModifiedLLM(llm_model).to(device)
@@ -164,7 +165,42 @@ def train_custom_layer1(translator_model, custom_layer1, llm_model, train_datalo
             optimizer.zero_grad()
             custom_output = custom_layer1(translator_last_hidden)
 
-            loss = criterion(custom_output, llm_first_layer_output)
+            # Align sequence lengths
+            max_len = max(custom_output.size(1), llm_first_layer_output.size(1))
+            custom_output_padded = pad_sequence([seq for seq in custom_output], batch_first=True, padding_value=0)
+            llm_first_layer_output_padded = pad_sequence([seq for seq in llm_first_layer_output], batch_first=True,
+                                                         padding_value=0)
+
+            if custom_output_padded.size(1) < max_len:
+                custom_output_padded = F.pad(custom_output_padded, (0, 0, 0, max_len - custom_output_padded.size(1)))
+            if llm_first_layer_output_padded.size(1) < max_len:
+                llm_first_layer_output_padded = F.pad(llm_first_layer_output_padded,
+                                                      (0, 0, 0, max_len - llm_first_layer_output_padded.size(1)))
+
+            # Create attention masks for padded sequences
+            custom_mask = (custom_output_padded.sum(dim=-1) != 0).float()
+            llm_mask = (llm_first_layer_output_padded.sum(dim=-1) != 0).float()
+
+            # Forward pass through LLM with padded outputs
+            llm_logits_custom = llm_model(inputs_embeds=custom_output_padded, attention_mask=custom_mask).logits
+            llm_logits_original = llm_model(inputs_embeds=llm_first_layer_output_padded, attention_mask=llm_mask).logits
+
+            # Calculate KL divergence loss only on valid (non-padded) tokens
+            log_probs_custom = F.log_softmax(llm_logits_custom, dim=-1)
+            log_probs_original = F.log_softmax(llm_logits_original, dim=-1)
+
+            loss_per_token = kl_loss(log_probs_custom.view(-1, log_probs_custom.size(-1)),
+                                     log_probs_original.view(-1, log_probs_original.size(-1)))
+
+            # Reshape loss_per_token back to (batch_size, seq_len)
+            loss_per_token = loss_per_token.view(llm_logits_custom.size(0), -1)
+
+            # Apply mask to consider only valid tokens
+            masked_loss = loss_per_token * custom_mask
+
+            # Sum losses for each sequence and divide by the number of tokens in each sequence
+            loss = (masked_loss.sum(dim=1) / custom_mask.sum(dim=1)).mean()
+
             loss.backward()
             optimizer.step()
 
