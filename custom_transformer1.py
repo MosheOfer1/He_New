@@ -176,6 +176,14 @@ def main(args):
     log_dir = os.path.join(os.path.dirname(args.save_path), 'logs')
     logger = setup_logger(log_dir)
 
+    # Device selection logic
+    if args.device == 'auto':
+        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    else:
+        device = torch.device(args.device)
+
+    logger.info(f"Using device: {device}")
+
     logger.info("Starting the training process")
     logger.info(f"Arguments: {args}")
 
@@ -230,6 +238,8 @@ if __name__ == "__main__":
     parser.add_argument("--batch_size", type=int, default=8, help="Batch size for training")
     parser.add_argument("--num_epochs", type=int, default=5, help="Number of training epochs")
     parser.add_argument("--learning_rate", type=float, default=1e-4, help="Learning rate")
+    parser.add_argument("--device", type=str, default='auto', choices=['auto', 'cuda', 'cpu'],
+                        help="Device to use for training (auto, cuda, or cpu)")
 
     args = parser.parse_args()
     main(args)
