@@ -181,9 +181,6 @@ def main(args):
     logger.info("Starting the training process")
     logger.info(f"Arguments: {args}")
 
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    logger.info(f"Using device: {device}")
-
     # Load the translator model
     translator_model = MarianMTModel.from_pretrained(args.translator_model_name)
     translator_tokenizer = MarianTokenizer.from_pretrained(args.translator_model_name)
@@ -223,7 +220,7 @@ def main(args):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Train CustomLayer1")
-    parser.add_argument("--translator_model_name", type=str, default="Helsinki-NLP/opus-mt-he-en",
+    parser.add_argument("--translator_model_name", type=str, default="Helsinki-NLP/opus-mt-tc-big-he-en",
                         help="Name or path of the Hebrew-English translator model")
     parser.add_argument("--llm_model_name", type=str, default="facebook/opt-350m", help="Name or path of the LLM")
     parser.add_argument("--data_path", type=str, required=True, help="Path to the training data")
