@@ -4,7 +4,7 @@ import torch.nn as nn
 import torch.optim as optim
 from torch.nn.functional import cosine_similarity
 from torch.utils.data import DataLoader, Dataset
-from transformers import MarianMTModel, MarianTokenizer, AutoConfig, AutoModelForCausalLM, AutoTokenizer
+from transformers import MarianMTModel, MarianTokenizer, OPTForCausalLM, AutoTokenizer
 from torch.nn import TransformerEncoderLayer
 import argparse
 
@@ -50,12 +50,6 @@ class CustomLayer1(nn.Module):
 def save_model(model, save_path):
     torch.save(model.state_dict(), save_path)
     print(f"Model saved to {save_path}")
-
-
-def load_model_configs(translator_model_name, llm_model_name):
-    translator_config = AutoConfig.from_pretrained(translator_model_name)
-    llm_config = AutoConfig.from_pretrained(llm_model_name)
-    return translator_config, llm_config
 
 
 class HebrewDataset(Dataset):
@@ -190,16 +184,16 @@ def main(args):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     logger.info(f"Using device: {device}")
 
-    # Load model configurations
-    translator_config, llm_config = load_model_configs(args.translator_model_name, args.llm_model_name)
-
     # Load the translator model
     translator_model = MarianMTModel.from_pretrained(args.translator_model_name)
     translator_tokenizer = MarianTokenizer.from_pretrained(args.translator_model_name)
 
     # Load the LLM
-    llm_model = AutoModelForCausalLM.from_pretrained(args.llm_model_name)
+    llm_model = OPTForCausalLM.from_pretrained(args.llm_model_name)
     llm_tokenizer = AutoTokenizer.from_pretrained(args.llm_model_name)
+
+    # Load model configurations
+    translator_config, llm_config = translator_model.config, llm_model.config
 
     # Create CustomLayer1
     custom_layer1 = CustomLayer1(
