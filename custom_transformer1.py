@@ -19,6 +19,7 @@ class ModifiedLLM(nn.Module):
     def forward(self, input_ids, attention_mask=None):
         # Get the embeddings
         inputs_embeds = self.model.model.decoder.embed_tokens(input_ids)
+        inputs_embeds = self.model.model.decoder.project_in(inputs_embeds)
 
         # Add positional embeddings
         pos_embeds = self.model.model.decoder.embed_positions(attention_mask, 0)
