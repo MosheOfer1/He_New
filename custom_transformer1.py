@@ -134,10 +134,28 @@ def train_custom_layer1(translator_model, custom_layer1, llm_model, train_datalo
                 # Get the outputs and the hidden states after embeddings
                 llm_first_layer_output = modified_llm(**llm_inputs)
 
+                # Tokenize the decoder input sentences
+                decoder_inputs = translator_tokenizer(translated_text, return_tensors="pt", padding=True,
+                                                      truncation=True,
+                                                      add_special_tokens=False)
+
+                # Add the decoder_start_token_id to the beginning of each sequence in decoder_inputs
+                decoder_start_token_id = translator_model.config.decoder_start_token_id
+                decoder_input_ids = torch.cat(
+                    [torch.full((decoder_inputs.input_ids.shape[0], 1), decoder_start_token_id, dtype=torch.long),
+                     decoder_inputs.input_ids], dim=1)
+
+                # Create attention masks for decoder inputs
+                decoder_attention_mask = torch.cat(
+                    [torch.ones((decoder_inputs.attention_mask.shape[0], 1), dtype=torch.long),
+                     decoder_inputs.attention_mask], dim=1)
+
                 # Get the translator model's last hidden state
                 translator_last_hidden = translator_model(
                     input_ids=batch_x,
+                    decoder_input_ids=decoder_input_ids,
                     attention_mask=attention_mask,
+                    decoder_attention_mask=decoder_attention_mask
                 ).last_hidden_state
 
             optimizer.zero_grad()
