@@ -99,8 +99,8 @@ class Trainer:
         }
 
     def log_prediction(self, input_ids_3, logits, step):
-        target_sequence = input_ids_3
-        predicted_ids = torch.argmax(logits, dim=-1)
+        target_sequence = input_ids_3[-1]
+        predicted_ids = torch.argmax(logits[-1], dim=-1)
 
         input_text_1 = self.tokenizer2.decode(target_sequence, skip_special_tokens=True)
 
