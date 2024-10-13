@@ -8,7 +8,7 @@ from transformers import AutoTokenizer, OPTForCausalLM, MarianMTModel, MarianTok
 from model import CustomLLM
 from dataset import create_dataloaders
 from training import train_llm
-from v2.lr_finder import find_best_lr
+from lr_finder import find_best_lr
 
 
 def main():
