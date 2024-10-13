@@ -174,17 +174,14 @@ class Trainer:
                                     attention_mask2=attention_mask_2,
                                     attention_mask3=new_attention_mask3)
 
-                # Shift the targets to align with the output (exclude the initial <pad> token)
-                new_input_ids3[:, :-1] = new_input_ids3[:, 1:]
+                targets = new_input_ids3[:, 1:].clone()
 
                 # Use attention_mask3 to find the last non-padded position for each sequence
-                last_non_pad = attention_mask_3.sum(dim=1) - 1
+                last_non_pad = attention_mask_3.sum(dim=1)
                 for idx in range(batch_size):
-                    new_input_ids3[idx, last_non_pad[idx] + 1] = end_token_id
+                    targets[idx, last_non_pad[idx]] = end_token_id
 
-                targets = new_input_ids3.contiguous()
-
-                # Calculate loss (you may need to adjust the ignore_index if it has changed)
+                # Calculate loss
                 loss = F.cross_entropy(logits.view(-1, logits.size(-1)), targets.view(-1),
                                        ignore_index=self.pad_token_id)
                 loss.backward()

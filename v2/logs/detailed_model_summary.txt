@@ -24,7 +24,7 @@ CustomLLM(
     (embed_positions): OPTLearnedPositionalEmbedding(2050, 1024)
   )
   (custom_decoder1): MarianDecoder(
-    (embed_tokens): Embedding(60269, 1024, padding_idx=60268)
+    (embed_tokens): None
     (embed_positions): MarianSinusoidalPositionalEmbedding(1024, 1024)
     (layers): ModuleList(
       (0-5): 6 x MarianDecoderLayer(
@@ -67,8 +67,8 @@ CustomLLM(
   )
   (linear2): Linear(in_features=1024, out_features=512, bias=True)
   (custom_encoder2): MarianEncoder(
-    (embed_tokens): Embedding(50272, 512, padding_idx=1)
-    (embed_positions): OPTLearnedPositionalEmbedding(2050, 1024)
+    (embed_tokens): None
+    (embed_positions): MarianSinusoidalPositionalEmbedding(512, 512)
     (layers): ModuleList(
       (0-5): 6 x MarianEncoderLayer(
         (self_attn): MarianAttention(
