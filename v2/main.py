@@ -8,6 +8,7 @@ from transformers import AutoTokenizer, OPTForCausalLM, MarianMTModel, MarianTok
 from model import CustomLLM
 from dataset import create_dataloaders
 from training import train_llm
+from v2.lr_finder import find_best_lr
 
 
 def main():
@@ -40,6 +41,9 @@ def main():
                         help="Path to a checkpoint file to resume training from")
     parser.add_argument("--pretrained-model", type=str, default=None,
                         help="Path to a pretrained CustomLLM model to load and fine-tune")
+    parser.add_argument("--find-lr", action="store_true", help="Run learning rate finder before training")
+    parser.add_argument("--lr-plot-path", type=str, default="lr_finder_plot.png",
+                        help="Path to save the learning rate finder plot")
 
     args = parser.parse_args()
 
@@ -73,6 +77,12 @@ def main():
 
     # Move the model to the specified device
     custom_llm = custom_llm.to(args.device)
+
+    if args.find_lr:
+        criterion = torch.nn.CrossEntropyLoss()
+        best_lr = find_best_lr(custom_llm, train_dataloader, criterion, args.device, args.lr_plot_path)
+        print(f"Best learning rate found: {best_lr}")
+        args.learning_rate = best_lr / 10  # Use a slightly lower learning rate for training
 
     # Set CUDA_LAUNCH_BLOCKING for better error reporting
     os.environ['CUDA_LAUNCH_BLOCKING'] = '1'
