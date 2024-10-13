@@ -1,9 +1,8 @@
 import torch
 import torch.nn as nn
 from transformers.models.marian.modeling_marian import MarianDecoder, MarianEncoder
-from transformers.models.opt.modeling_opt import OPTAttention
 
-from v2.utils import create_opt_attention_mask
+from utils import create_opt_attention_mask
 
 
 class EmbeddingLLM(nn.Module):
