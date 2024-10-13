@@ -10,16 +10,18 @@ from utils import print_progress_bar
 
 
 class LRFinder:
-    def __init__(self, model, optimizer, criterion, device):
+    def __init__(self, model, optimizer, criterion, device, smooth_f=0.05, diverge_th=5):
         self.model = model
         self.optimizer = optimizer
         self.criterion = criterion
         self.device = device
+        self.smooth_f = smooth_f
+        self.diverge_th = diverge_th
 
         self.history = {"lr": [], "loss": []}
         self.best_loss = None
 
-    def range_test(self, train_loader, end_lr=10, num_iter=100, step_mode="exp", smooth_f=0.05, diverge_th=5):
+    def range_test(self, train_loader, end_lr=10, num_iter=100, step_mode="exp"):
         lr_scheduler = ExponentialLR(self.optimizer, end_lr, num_iter) if step_mode == "exp" else LinearLR(
             self.optimizer, end_lr, num_iter)
 
@@ -137,7 +139,7 @@ def find_best_lr(model, train_dataloader, device, save_path):
     model_copy = copy.deepcopy(model)
     optimizer = Adam(model_copy.parameters(), lr=1e-7, weight_decay=1e-2)
     criterion = torch.nn.CrossEntropyLoss(ignore_index=model_copy.en_he_decoder.config.pad_token_id)
-    lr_finder = LRFinder(model_copy, optimizer, criterion, device)
+    lr_finder = LRFinder(model_copy, optimizer, criterion, device, smooth_f=0.05, diverge_th=5)
 
     history = lr_finder.range_test(train_dataloader, end_lr=10, num_iter=100)
     lr_finder.plot(save_path)
