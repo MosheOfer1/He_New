@@ -79,8 +79,7 @@ def main():
     custom_llm = custom_llm.to(args.device)
 
     if args.find_lr:
-        criterion = torch.nn.CrossEntropyLoss()
-        best_lr = find_best_lr(custom_llm, train_dataloader, criterion, args.device, args.lr_plot_path)
+        best_lr = find_best_lr(custom_llm, train_dataloader, args.device, args.lr_plot_path)
         print(f"Best learning rate found: {best_lr}")
         args.learning_rate = best_lr / 10  # Use a slightly lower learning rate for training
 
