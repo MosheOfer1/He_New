@@ -48,7 +48,6 @@ class CustomLLM(nn.Module):
 
         # Second custom transformer layers
         self.custom_encoder2 = MarianEncoder(en_he_model.config, llm_model.model.decoder.embed_tokens)
-        self.custom_encoder2.embed_positions = llm_model.model.decoder.embed_positions
 
         # English-Hebrew components
         self.en_he_decoder = en_he_model.model.decoder
