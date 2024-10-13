@@ -177,9 +177,13 @@ class Trainer:
                 targets = new_input_ids3[:, 1:].clone()
 
                 # Use attention_mask3 to find the last non-padded position for each sequence
-                last_non_pad = attention_mask_3.sum(dim=1)
+                last_non_pad = attention_mask_3.sum(dim=1) - 1  # Subtract 1 to get the last valid index
                 for idx in range(batch_size):
-                    targets[idx, last_non_pad[idx]] = end_token_id
+                    if last_non_pad[idx] < seq_length - 1:  # Check if there's room to add the end token
+                        targets[idx, last_non_pad[idx] + 1] = end_token_id
+                    else:
+                        # If there's no room, replace the last token with the end token
+                        targets[idx, -1] = end_token_id
 
                 # Calculate loss
                 loss = F.cross_entropy(logits.view(-1, logits.size(-1)), targets.view(-1),
