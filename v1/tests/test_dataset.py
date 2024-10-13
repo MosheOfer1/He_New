@@ -4,7 +4,7 @@ from transformers import MarianTokenizer, MarianMTModel
 import tempfile
 import os
 
-from dataset import TextDataset, create_dataloaders
+from v1.dataset import TextDataset, create_dataloaders
 
 
 class TestTranslationConsistency(unittest.TestCase):

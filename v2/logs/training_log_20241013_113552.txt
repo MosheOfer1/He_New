@@ -1,0 +1,166 @@
+2024-10-13 11:35:52,620 - TrainingLogger - INFO - Using device: cpu
+2024-10-13 11:35:52,625 - TrainingLogger - INFO - Model Architecture:
+2024-10-13 11:35:52,625 - TrainingLogger - INFO - 
+Detailed Model Architecture:
+2024-10-13 11:35:52,638 - TrainingLogger - INFO - CustomLLM(
+  (he_en_model_encoder): MarianEncoder(
+    (embed_tokens): Embedding(60269, 1024, padding_idx=60268)
+    (embed_positions): MarianSinusoidalPositionalEmbedding(1024, 1024)
+    (layers): ModuleList(
+      (0-5): 6 x MarianEncoderLayer(
+        (self_attn): MarianAttention(
+          (k_proj): Linear(in_features=1024, out_features=1024, bias=True)
+          (v_proj): Linear(in_features=1024, out_features=1024, bias=True)
+          (q_proj): Linear(in_features=1024, out_features=1024, bias=True)
+          (out_proj): Linear(in_features=1024, out_features=1024, bias=True)
+        )
+        (self_attn_layer_norm): LayerNorm((1024,), eps=1e-05, elementwise_affine=True)
+        (activation_fn): ReLU()
+        (fc1): Linear(in_features=1024, out_features=4096, bias=True)
+        (fc2): Linear(in_features=4096, out_features=1024, bias=True)
+        (final_layer_norm): LayerNorm((1024,), eps=1e-05, elementwise_affine=True)
+      )
+    )
+  )
+  (custom_embedding): EmbeddingLLM(
+    (embed_tokens): Embedding(50272, 512, padding_idx=1)
+    (project_in): Linear(in_features=512, out_features=1024, bias=False)
+    (embed_positions): OPTLearnedPositionalEmbedding(2050, 1024)
+  )
+  (custom_decoder1): MarianDecoder(
+    (embed_tokens): None
+    (embed_positions): MarianSinusoidalPositionalEmbedding(1024, 1024)
+    (layers): ModuleList(
+      (0-5): 6 x MarianDecoderLayer(
+        (self_attn): MarianAttention(
+          (k_proj): Linear(in_features=1024, out_features=1024, bias=True)
+          (v_proj): Linear(in_features=1024, out_features=1024, bias=True)
+          (q_proj): Linear(in_features=1024, out_features=1024, bias=True)
+          (out_proj): Linear(in_features=1024, out_features=1024, bias=True)
+        )
+        (activation_fn): ReLU()
+        (self_attn_layer_norm): LayerNorm((1024,), eps=1e-05, elementwise_affine=True)
+        (encoder_attn): MarianAttention(
+          (k_proj): Linear(in_features=1024, out_features=1024, bias=True)
+          (v_proj): Linear(in_features=1024, out_features=1024, bias=True)
+          (q_proj): Linear(in_features=1024, out_features=1024, bias=True)
+          (out_proj): Linear(in_features=1024, out_features=1024, bias=True)
+        )
+        (encoder_attn_layer_norm): LayerNorm((1024,), eps=1e-05, elementwise_affine=True)
+        (fc1): Linear(in_features=1024, out_features=4096, bias=True)
+        (fc2): Linear(in_features=4096, out_features=1024, bias=True)
+        (final_layer_norm): LayerNorm((1024,), eps=1e-05, elementwise_affine=True)
+      )
+    )
+  )
+  (linear1): Linear(in_features=1024, out_features=1024, bias=True)
+  (main_layers): ModuleList(
+    (0-23): 24 x OPTDecoderLayer(
+      (self_attn): OPTAttention(
+        (k_proj): Linear(in_features=1024, out_features=1024, bias=True)
+        (v_proj): Linear(in_features=1024, out_features=1024, bias=True)
+        (q_proj): Linear(in_features=1024, out_features=1024, bias=True)
+        (out_proj): Linear(in_features=1024, out_features=1024, bias=True)
+      )
+      (activation_fn): ReLU()
+      (self_attn_layer_norm): LayerNorm((1024,), eps=1e-05, elementwise_affine=True)
+      (fc1): Linear(in_features=1024, out_features=4096, bias=True)
+      (fc2): Linear(in_features=4096, out_features=1024, bias=True)
+      (final_layer_norm): LayerNorm((1024,), eps=1e-05, elementwise_affine=True)
+    )
+  )
+  (linear2): Linear(in_features=1024, out_features=512, bias=True)
+  (custom_encoder2): MarianEncoder(
+    (embed_tokens): Embedding(50272, 512, padding_idx=1)
+    (embed_positions): OPTLearnedPositionalEmbedding(2050, 1024)
+    (layers): ModuleList(
+      (0-5): 6 x MarianEncoderLayer(
+        (self_attn): MarianAttention(
+          (k_proj): Linear(in_features=512, out_features=512, bias=True)
+          (v_proj): Linear(in_features=512, out_features=512, bias=True)
+          (q_proj): Linear(in_features=512, out_features=512, bias=True)
+          (out_proj): Linear(in_features=512, out_features=512, bias=True)
+        )
+        (self_attn_layer_norm): LayerNorm((512,), eps=1e-05, elementwise_affine=True)
+        (activation_fn): SiLU()
+        (fc1): Linear(in_features=512, out_features=2048, bias=True)
+        (fc2): Linear(in_features=2048, out_features=512, bias=True)
+        (final_layer_norm): LayerNorm((512,), eps=1e-05, elementwise_affine=True)
+      )
+    )
+  )
+  (en_he_decoder): MarianDecoder(
+    (embed_tokens): Embedding(65839, 512, padding_idx=65838)
+    (embed_positions): MarianSinusoidalPositionalEmbedding(512, 512)
+    (layers): ModuleList(
+      (0-5): 6 x MarianDecoderLayer(
+        (self_attn): MarianAttention(
+          (k_proj): Linear(in_features=512, out_features=512, bias=True)
+          (v_proj): Linear(in_features=512, out_features=512, bias=True)
+          (q_proj): Linear(in_features=512, out_features=512, bias=True)
+          (out_proj): Linear(in_features=512, out_features=512, bias=True)
+        )
+        (activation_fn): SiLU()
+        (self_attn_layer_norm): LayerNorm((512,), eps=1e-05, elementwise_affine=True)
+        (encoder_attn): MarianAttention(
+          (k_proj): Linear(in_features=512, out_features=512, bias=True)
+          (v_proj): Linear(in_features=512, out_features=512, bias=True)
+          (q_proj): Linear(in_features=512, out_features=512, bias=True)
+          (out_proj): Linear(in_features=512, out_features=512, bias=True)
+        )
+        (encoder_attn_layer_norm): LayerNorm((512,), eps=1e-05, elementwise_affine=True)
+        (fc1): Linear(in_features=512, out_features=2048, bias=True)
+        (fc2): Linear(in_features=2048, out_features=512, bias=True)
+        (final_layer_norm): LayerNorm((512,), eps=1e-05, elementwise_affine=True)
+      )
+    )
+  )
+  (lm_head): Linear(in_features=512, out_features=65839, bias=False)
+)
+2024-10-13 11:35:52,657 - TrainingLogger - INFO - 
+Total parameters: 650,526,720
+2024-10-13 11:35:52,657 - TrainingLogger - INFO - Trainable parameters: 150,155,776
+2024-10-13 11:35:52,657 - TrainingLogger - INFO - Percentage of trainable parameters: 23.08%
+2024-10-13 11:35:52,657 - TrainingLogger - INFO - 
+Detailed Layer-wise Information:
+2024-10-13 11:35:52,660 - TrainingLogger - INFO - 
+he_en_model_encoder:
+2024-10-13 11:35:52,660 - TrainingLogger - INFO -   Total params: 138,341,376
+2024-10-13 11:35:52,660 - TrainingLogger - INFO -   Trainable params: 0
+2024-10-13 11:35:52,662 - TrainingLogger - INFO - 
+custom_embedding:
+2024-10-13 11:35:52,662 - TrainingLogger - INFO -   Total params: 28,362,752
+2024-10-13 11:35:52,662 - TrainingLogger - INFO -   Trainable params: 27,838,464
+2024-10-13 11:35:52,665 - TrainingLogger - INFO - 
+custom_decoder1:
+2024-10-13 11:35:52,665 - TrainingLogger - INFO -   Total params: 101,828,608
+2024-10-13 11:35:52,665 - TrainingLogger - INFO -   Trainable params: 101,828,608
+2024-10-13 11:35:52,665 - TrainingLogger - INFO - 
+linear1:
+2024-10-13 11:35:52,666 - TrainingLogger - INFO -   Total params: 1,049,600
+2024-10-13 11:35:52,666 - TrainingLogger - INFO -   Trainable params: 1,049,600
+2024-10-13 11:35:52,672 - TrainingLogger - INFO - 
+main_layers:
+2024-10-13 11:35:52,673 - TrainingLogger - INFO -   Total params: 302,309,376
+2024-10-13 11:35:52,673 - TrainingLogger - INFO -   Trainable params: 0
+2024-10-13 11:35:52,673 - TrainingLogger - INFO -   Number of layers: 24
+2024-10-13 11:35:52,673 - TrainingLogger - INFO -     Attention Heads: 16
+2024-10-13 11:35:52,673 - TrainingLogger - INFO -     Head Dimension: 64
+2024-10-13 11:35:52,674 - TrainingLogger - INFO - 
+linear2:
+2024-10-13 11:35:52,674 - TrainingLogger - INFO -   Total params: 524,800
+2024-10-13 11:35:52,674 - TrainingLogger - INFO -   Trainable params: 524,800
+2024-10-13 11:35:52,676 - TrainingLogger - INFO - 
+custom_encoder2:
+2024-10-13 11:35:52,676 - TrainingLogger - INFO -   Total params: 46,752,768
+2024-10-13 11:35:52,676 - TrainingLogger - INFO -   Trainable params: 46,752,768
+2024-10-13 11:35:52,679 - TrainingLogger - INFO - 
+en_he_decoder:
+2024-10-13 11:35:52,679 - TrainingLogger - INFO -   Total params: 59,195,904
+2024-10-13 11:35:52,679 - TrainingLogger - INFO -   Trainable params: 0
+2024-10-13 11:35:52,679 - TrainingLogger - INFO - 
+lm_head:
+2024-10-13 11:35:52,679 - TrainingLogger - INFO -   Total params: 33,709,568
+2024-10-13 11:35:52,679 - TrainingLogger - INFO -   Trainable params: 0
+2024-10-13 11:35:52,688 - TrainingLogger - INFO - Detailed model summary has been saved to 'detailed_model_summary.txt'
+2024-10-13 11:36:33,586 - TrainingLogger - INFO - Starting training from epoch 0

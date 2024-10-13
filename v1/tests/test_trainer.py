@@ -6,7 +6,7 @@ import os
 from torch.utils.data import DataLoader, TensorDataset
 from unittest.mock import MagicMock, patch
 
-from training import Trainer
+from v1.training import Trainer
 
 
 class TestTrainer(unittest.TestCase):
