@@ -6,12 +6,13 @@ import random
 
 class TextDataset(Dataset):
     def __init__(self, sentences, he_en_model: MarianMTModel, tokenizer1: PreTrainedTokenizer,
-                 tokenizer2: PreTrainedTokenizer, tokenizer3: PreTrainedTokenizer):
+                 tokenizer2: PreTrainedTokenizer, tokenizer3: PreTrainedTokenizer, device: str):
         self.sentences = sentences
         self.he_en_model = he_en_model
         self.tokenizer1 = tokenizer1
         self.tokenizer2 = tokenizer2
         self.tokenizer3 = tokenizer3
+        self.device = device
 
     def __len__(self):
         return len(self.sentences)
@@ -23,13 +24,13 @@ class TextDataset(Dataset):
         inputs_1 = self.tokenizer1(original_sentence, return_tensors="pt")
 
         # Get input_ids and attention_mask
-        input_ids_1 = inputs_1["input_ids"]
-        attention_mask_1 = inputs_1["attention_mask"]
+        input_ids_1 = inputs_1["input_ids"].to(self.device)
+        attention_mask_1 = inputs_1["attention_mask"].to(self.device)
 
         # Remove the second-to-last token but keep the last token (e.g., </s>)
         if input_ids_1.size(1) > 2:  # Ensure there are enough tokens to remove the second-to-last
-            input_ids_1 = torch.cat((input_ids_1[:, :-2], input_ids_1[:, -1:]), dim=1)
-            attention_mask_1 = torch.cat((attention_mask_1[:, :-2], attention_mask_1[:, -1:]), dim=1)
+            input_ids_1 = torch.cat((input_ids_1[:, :-2], input_ids_1[:, -1:]), dim=1).to(self.device)
+            attention_mask_1 = torch.cat((attention_mask_1[:, :-2], attention_mask_1[:, -1:]), dim=1).to(self.device)
 
         # Translate the modified sentence on the fly
         translated_sentence = self.he_en_model.generate(input_ids=input_ids_1, attention_mask=attention_mask_1)
@@ -37,15 +38,15 @@ class TextDataset(Dataset):
 
         # Tokenizer 2: English translation
         inputs_2 = self.tokenizer2(translated_sentence, return_tensors="pt")
-        input_ids_2 = inputs_2["input_ids"]
-        attention_mask_2 = inputs_2["attention_mask"]
+        input_ids_2 = inputs_2["input_ids"].to(self.device)
+        attention_mask_2 = inputs_2["attention_mask"].to(self.device)
 
         # Tokenizer 3: Full Hebrew sentence
         inputs_3 = self.tokenizer3(text_target=original_sentence, return_tensors="pt")
 
         # Get input_ids and attention_mask
-        input_ids_3 = inputs_3["input_ids"][:, :-1]
-        attention_mask_3 = inputs_3["attention_mask"][:, :-1]
+        input_ids_3 = inputs_3["input_ids"][:, :-1].to(self.device)
+        attention_mask_3 = inputs_3["attention_mask"][:, :-1].to(self.device)
 
         return {
             "input_ids_1": input_ids_1.squeeze(), "attention_mask_1": attention_mask_1.squeeze(),
@@ -77,7 +78,7 @@ class TextDataset(Dataset):
         }
 
 
-def create_dataloaders(sentences, he_en_model, tokenizer1, tokenizer2, tokenizer3, batch_size, train_split):
+def create_dataloaders(sentences, he_en_model, tokenizer1, tokenizer2, tokenizer3, batch_size, train_split, device):
     # Split data into training and evaluation sets
     random.shuffle(sentences)
     split_idx = int(train_split * len(sentences))
@@ -85,22 +86,11 @@ def create_dataloaders(sentences, he_en_model, tokenizer1, tokenizer2, tokenizer
     eval_sentences = sentences[split_idx:]
 
     # Create Datasets
-    train_dataset = TextDataset(train_sentences, he_en_model, tokenizer1, tokenizer2, tokenizer3)
-    eval_dataset = TextDataset(eval_sentences, he_en_model, tokenizer1, tokenizer2, tokenizer3)
+    train_dataset = TextDataset(train_sentences, he_en_model, tokenizer1, tokenizer2, tokenizer3, device)
+    eval_dataset = TextDataset(eval_sentences, he_en_model, tokenizer1, tokenizer2, tokenizer3, device)
 
     # Create DataLoaders
     train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, collate_fn=train_dataset.collate_fn)
     eval_loader = DataLoader(eval_dataset, batch_size=batch_size, shuffle=False, collate_fn=train_dataset.collate_fn)
 
     return train_loader, eval_loader
-
-# Example usage
-# Define the sentences, Marian translation model, and the three tokenizers
-# sentences = ["some sentence in Hebrew", "another sentence in Hebrew"]
-# model = MarianMTModel.from_pretrained('Helsinki-NLP/opus-mt-he-en')
-# tokenizer1 = MarianTokenizer.from_pretrained('Helsinki-NLP/opus-mt-he-en')
-# tokenizer2 = MarianTokenizer.from_pretrained('Helsinki-NLP/opus-mt-en-he')
-# tokenizer3 = MarianTokenizer.from_pretrained('some-other-tokenizer')
-
-# Create DataLoaders
-# train_loader, eval_loader = create_dataloaders(sentences, model, tokenizer1, tokenizer2, tokenizer3)

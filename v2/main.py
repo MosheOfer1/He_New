@@ -42,8 +42,8 @@ def main():
 
     # Load models
     he_en_model = MarianMTModel.from_pretrained(args.he_en_model).to(args.device)
-    en_he_model = MarianMTModel.from_pretrained(args.en_he_model)
-    llm_model = OPTForCausalLM.from_pretrained(args.llm_model)
+    en_he_model = MarianMTModel.from_pretrained(args.en_he_model).to(args.device)
+    llm_model = OPTForCausalLM.from_pretrained(args.llm_model).to(args.device)
 
     # Load tokenizers
     tokenizer1 = MarianTokenizer.from_pretrained(args.he_en_model)
@@ -57,7 +57,8 @@ def main():
 
     # Create dataloaders
     train_dataloader, eval_dataloader = create_dataloaders(sentences, he_en_model, tokenizer1, tokenizer2, tokenizer3,
-                                                           batch_size=args.batch_size, train_split=args.train_split)
+                                                           batch_size=args.batch_size, train_split=args.train_split,
+                                                           device=args.device)
 
     if args.pretrained_model:
         # Load the pretrained CustomLLM
