@@ -112,11 +112,12 @@ class CustomLLM(nn.Module):
             attention_mask=attention_mask2
         ).last_hidden_state
 
+        # Teacher forcing
         x = self.en_he_decoder(
-            inputs_embeds=x,
-            attention_mask=attention_mask2,
-            decoder_input_ids=input_ids3,
-            decoder_attention_mask=attention_mask3,
+            encoder_hidden_states=x,
+            encoder_attention_mask=attention_mask2,
+            input_ids=input_ids3,
+            attention_mask=attention_mask3,
         )[0]
 
         logits = self.lm_head(x) + self.final_logits_bias
