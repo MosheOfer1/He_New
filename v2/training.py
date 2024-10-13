@@ -166,8 +166,8 @@ class Trainer:
                                                   device=attention_mask_3.device)
                 new_attention_mask3[:, 1:] = attention_mask_3
                 # Log the shape and first sequence of new_input_ids3
-                self.logger.info(f"new_input_ids3 shape: {new_input_ids3.shape}")
-                self.logger.info(f"new_input_ids3 first sequence: {new_input_ids3[0].tolist()}")
+                self.logger.debug(f"new_input_ids3 shape: {new_input_ids3.shape}")
+                self.logger.debug(f"new_input_ids3 first sequence: {new_input_ids3[0].tolist()}")
 
                 # Update the model call
                 logits = self.model(input_ids_1,
@@ -190,8 +190,8 @@ class Trainer:
                     else:
                         targets[idx, -1] = end_token_id
                 # Log the shape and first sequence of targets
-                self.logger.info(f"targets shape: {targets.shape}")
-                self.logger.info(f"targets first sequence: {targets[0].tolist()}")
+                self.logger.debug(f"targets shape: {targets.shape}")
+                self.logger.debug(f"targets first sequence: {targets[0].tolist()}")
 
                 # Calculate loss
                 loss = F.cross_entropy(logits.view(-1, logits.size(-1)), targets.view(-1),
