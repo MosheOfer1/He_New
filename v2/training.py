@@ -165,6 +165,9 @@ class Trainer:
                 new_attention_mask3 = torch.zeros((batch_size, seq_length + 1), dtype=attention_mask_3.dtype,
                                                   device=attention_mask_3.device)
                 new_attention_mask3[:, 1:] = attention_mask_3
+                # Log the shape and first sequence of new_input_ids3
+                self.logger.info(f"new_input_ids3 shape: {new_input_ids3.shape}")
+                self.logger.info(f"new_input_ids3 first sequence: {new_input_ids3[0].tolist()}")
 
                 # Update the model call
                 logits = self.model(input_ids_1,
@@ -174,16 +177,21 @@ class Trainer:
                                     attention_mask2=attention_mask_2,
                                     attention_mask3=new_attention_mask3)
 
-                targets = new_input_ids3[:, 1:].clone()
+                # Create targets with the same size as new_input_ids3
+                targets = torch.full((batch_size, seq_length + 1), pad_token_id, dtype=input_ids_3.dtype,
+                                     device=input_ids_3.device)
+                targets[:, :-1] = new_input_ids3[:, 1:]  # Shift right by one position
 
                 # Use attention_mask3 to find the last non-padded position for each sequence
                 last_non_pad = attention_mask_3.sum(dim=1) - 1  # Subtract 1 to get the last valid index
                 for idx in range(batch_size):
-                    if last_non_pad[idx] < seq_length - 1:  # Check if there's room to add the end token
+                    if last_non_pad[idx] < seq_length - 1:
                         targets[idx, last_non_pad[idx] + 1] = end_token_id
                     else:
-                        # If there's no room, replace the last token with the end token
                         targets[idx, -1] = end_token_id
+                # Log the shape and first sequence of targets
+                self.logger.info(f"targets shape: {targets.shape}")
+                self.logger.info(f"targets first sequence: {targets[0].tolist()}")
 
                 # Calculate loss
                 loss = F.cross_entropy(logits.view(-1, logits.size(-1)), targets.view(-1),
