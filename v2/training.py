@@ -142,6 +142,8 @@ class Trainer:
             self.model.train()
             total_loss = 0
             for i, batch in enumerate(train_dataloader):
+                if batch is None:
+                    continue  # Skip this batch
                 input_ids_1 = batch["input_ids_1"].to(self.device)
                 attention_mask_1 = batch["attention_mask_1"].to(self.device)
                 input_ids_2 = batch["input_ids_2"].to(self.device)
