@@ -39,12 +39,13 @@ class LRFinder:
                 self.history["lr"].append(lr_scheduler.get_lr()[0])
                 self.history["loss"].append(avg_loss)
 
-                if iteration > 0 and self.history["loss"][-1] > self.diverge_th * self.best_loss:
+                if self.best_loss is None:
+                    self.best_loss = avg_loss
+                elif avg_loss < self.best_loss:
+                    self.best_loss = avg_loss
+                elif avg_loss > self.diverge_th * self.best_loss:
                     print("\nStopping early, the loss has diverged")
                     break
-
-                if avg_loss < self.best_loss or self.best_loss is None:
-                    self.best_loss = avg_loss
 
             except Exception as e:
                 print(f"\nError encountered in iteration {iteration}: {str(e)}")
