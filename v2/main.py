@@ -1,4 +1,7 @@
 import argparse
+import os
+import traceback
+
 import torch
 from transformers import AutoTokenizer, OPTForCausalLM, MarianMTModel, MarianTokenizer
 
@@ -71,15 +74,22 @@ def main():
     # Move the model to the specified device
     custom_llm = custom_llm.to(args.device)
 
-    # Train the model
-    train_llm(custom_llm, train_dataloader, eval_dataloader, tokenizer1, tokenizer3,
-              num_epochs=args.num_epochs,
-              learning_rate=args.learning_rate,
-              device=args.device,
-              log_dir=args.log_dir,
-              save_dir=args.save_dir,
-              checkpoint=args.checkpoint,
-              display_interval=args.display_interval)
+    # Set CUDA_LAUNCH_BLOCKING for better error reporting
+    os.environ['CUDA_LAUNCH_BLOCKING'] = '1'
+
+    try:
+        # Train the model
+        train_llm(custom_llm, train_dataloader, eval_dataloader, tokenizer1, tokenizer3,
+                  num_epochs=args.num_epochs,
+                  learning_rate=args.learning_rate,
+                  device=args.device,
+                  log_dir=args.log_dir,
+                  save_dir=args.save_dir,
+                  checkpoint=args.checkpoint,
+                  display_interval=args.display_interval)
+    except Exception as e:
+        print(f"An error occurred during training: {str(e)}")
+        print(f"Traceback: {traceback.format_exc()}")
 
 
 if __name__ == "__main__":

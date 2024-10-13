@@ -5,6 +5,17 @@ from datetime import datetime
 import torch
 import torch.nn as nn
 from transformers.modeling_attn_mask_utils import AttentionMaskConverter
+import traceback
+
+
+def log_error(logger, error, batch):
+    logger.error(f"Error during forward pass: {str(error)}")
+    logger.error(f"Traceback: {traceback.format_exc()}")
+    for key, value in batch.items():
+        if isinstance(value, torch.Tensor):
+            logger.error(f"{key} shape: {value.shape}, device: {value.device}")
+            logger.error(f"{key} min: {value.min().item()}, max: {value.max().item()}")
+    logger.error("Skipping this batch due to error.")
 
 
 def setup_logger(log_dir):

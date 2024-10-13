@@ -2,7 +2,7 @@ import torch
 import torch.nn.functional as F
 import math
 import os
-from utils import print_progress_bar, print_model_info, setup_logger
+from utils import print_progress_bar, print_model_info, setup_logger, log_error
 
 
 class Trainer:
@@ -144,96 +144,100 @@ class Trainer:
             for i, batch in enumerate(train_dataloader):
                 if batch is None:
                     continue  # Skip this batch
-                input_ids_1 = batch["input_ids_1"].to(self.device)
-                attention_mask_1 = batch["attention_mask_1"].to(self.device)
-                input_ids_2 = batch["input_ids_2"].to(self.device)
-                attention_mask_2 = batch["attention_mask_2"].to(self.device)
-                input_ids_3 = batch["input_ids_3"].to(self.device)
-                attention_mask_3 = batch["attention_mask_3"].to(self.device)
+                try:
+                    input_ids_1 = batch["input_ids_1"].to(self.device)
+                    attention_mask_1 = batch["attention_mask_1"].to(self.device)
+                    input_ids_2 = batch["input_ids_2"].to(self.device)
+                    attention_mask_2 = batch["attention_mask_2"].to(self.device)
+                    input_ids_3 = batch["input_ids_3"].to(self.device)
+                    attention_mask_3 = batch["attention_mask_3"].to(self.device)
 
-                optimizer.zero_grad()
+                    optimizer.zero_grad()
 
-                # Get the pad and end token IDs
-                pad_token_id = self.pad_token_id
-                end_token_id = self.eos_token_id
+                    # Get the pad and end token IDs
+                    pad_token_id = self.pad_token_id
+                    end_token_id = self.eos_token_id
 
-                # Add <pad> to the beginning
-                batch_size, seq_length = input_ids_3.shape
-                new_input_ids3 = torch.full((batch_size, seq_length + 1), pad_token_id, dtype=input_ids_3.dtype,
-                                            device=input_ids_3.device)
-                new_input_ids3[:, 1:] = input_ids_3
+                    # Add <pad> to the beginning
+                    batch_size, seq_length = input_ids_3.shape
+                    new_input_ids3 = torch.full((batch_size, seq_length + 1), pad_token_id, dtype=input_ids_3.dtype,
+                                                device=input_ids_3.device)
+                    new_input_ids3[:, 1:] = input_ids_3
 
-                # Update attention mask
-                new_attention_mask3 = torch.zeros((batch_size, seq_length + 1), dtype=attention_mask_3.dtype,
-                                                  device=attention_mask_3.device)
-                new_attention_mask3[:, 1:] = attention_mask_3
-                # Log the shape and first sequence of new_input_ids3
-                self.logger.debug(f"new_input_ids3 shape: {new_input_ids3.shape}")
-                self.logger.debug(f"new_input_ids3 first sequence: {new_input_ids3[0].tolist()}")
+                    # Update attention mask
+                    new_attention_mask3 = torch.zeros((batch_size, seq_length + 1), dtype=attention_mask_3.dtype,
+                                                      device=attention_mask_3.device)
+                    new_attention_mask3[:, 1:] = attention_mask_3
+                    # Log the shape and first sequence of new_input_ids3
+                    self.logger.debug(f"new_input_ids3 shape: {new_input_ids3.shape}")
+                    self.logger.debug(f"new_input_ids3 first sequence: {new_input_ids3[0].tolist()}")
 
-                # Update the model call
-                logits = self.model(input_ids_1,
-                                    input_ids_2,
-                                    new_input_ids3,  # Use the modified input_ids for the third input as well
-                                    attention_mask1=attention_mask_1,
-                                    attention_mask2=attention_mask_2,
-                                    attention_mask3=new_attention_mask3)
+                    # Update the model call
+                    logits = self.model(input_ids_1,
+                                        input_ids_2,
+                                        new_input_ids3,  # Use the modified input_ids for the third input as well
+                                        attention_mask1=attention_mask_1,
+                                        attention_mask2=attention_mask_2,
+                                        attention_mask3=new_attention_mask3)
 
-                # Create targets with the same size as new_input_ids3
-                targets = torch.full((batch_size, seq_length + 1), pad_token_id, dtype=input_ids_3.dtype,
-                                     device=input_ids_3.device)
-                targets[:, :-1] = new_input_ids3[:, 1:]  # Shift right by one position
+                    # Create targets with the same size as new_input_ids3
+                    targets = torch.full((batch_size, seq_length + 1), pad_token_id, dtype=input_ids_3.dtype,
+                                         device=input_ids_3.device)
+                    targets[:, :-1] = new_input_ids3[:, 1:]  # Shift right by one position
 
-                # Use attention_mask3 to find the last non-padded position for each sequence
-                last_non_pad = attention_mask_3.sum(dim=1) - 1  # Subtract 1 to get the last valid index
-                for idx in range(batch_size):
-                    if last_non_pad[idx] < seq_length - 1:
-                        targets[idx, last_non_pad[idx] + 1] = end_token_id
-                    else:
-                        targets[idx, -1] = end_token_id
-                # Log the shape and first sequence of targets
-                self.logger.debug(f"targets shape: {targets.shape}")
-                self.logger.debug(f"targets first sequence: {targets[0].tolist()}")
+                    # Use attention_mask3 to find the last non-padded position for each sequence
+                    last_non_pad = attention_mask_3.sum(dim=1) - 1  # Subtract 1 to get the last valid index
+                    for idx in range(batch_size):
+                        if last_non_pad[idx] < seq_length - 1:
+                            targets[idx, last_non_pad[idx] + 1] = end_token_id
+                        else:
+                            targets[idx, -1] = end_token_id
+                    # Log the shape and first sequence of targets
+                    self.logger.debug(f"targets shape: {targets.shape}")
+                    self.logger.debug(f"targets first sequence: {targets[0].tolist()}")
 
-                # Calculate loss
-                loss = F.cross_entropy(logits.view(-1, logits.size(-1)), targets.view(-1),
-                                       ignore_index=self.pad_token_id)
-                loss.backward()
-                optimizer.step()
+                    # Calculate loss
+                    loss = F.cross_entropy(logits.view(-1, logits.size(-1)), targets.view(-1),
+                                           ignore_index=self.pad_token_id)
+                    loss.backward()
+                    optimizer.step()
 
-                total_loss += loss.item()
-                global_step += 1
+                    total_loss += loss.item()
+                    global_step += 1
 
-                if global_step % 10 == 0:
-                    batch_metrics = self.evaluate_batch(logits, targets)
-                    self.logger.info(f"Step {global_step}, Batch metrics: "
-                                     f"Loss: {batch_metrics[0]:.4f}, "
-                                     f"Accuracy: {batch_metrics[1]:.4f}, "
-                                     f"Perplexity: {batch_metrics[2]:.4f}")
+                    if global_step % 10 == 0:
+                        batch_metrics = self.evaluate_batch(logits, targets)
+                        self.logger.info(f"Step {global_step}, Batch metrics: "
+                                         f"Loss: {batch_metrics[0]:.4f}, "
+                                         f"Accuracy: {batch_metrics[1]:.4f}, "
+                                         f"Perplexity: {batch_metrics[2]:.4f}")
 
-                if global_step % display_interval == 0:
-                    self.log_prediction(input_ids_3, logits, global_step)
-                    # Log learning rates
-                    for idx, param_group in enumerate(optimizer.param_groups):
-                        self.logger.info(f"Learning rate (group {idx}): {param_group['lr']:.6f}")
+                    if global_step % display_interval == 0:
+                        self.log_prediction(input_ids_3, logits, global_step)
+                        # Log learning rates
+                        for idx, param_group in enumerate(optimizer.param_groups):
+                            self.logger.info(f"Learning rate (group {idx}): {param_group['lr']:.6f}")
 
-                    # Log gradients
-                    self.log_gradients(self.model)
+                        # Log gradients
+                        self.log_gradients(self.model)
 
-                print_progress_bar(i + 1, len(train_dataloader), epoch + 1, num_epochs,
-                                   prefix='Training:', suffix=f'Loss: {loss.item():.4f}', length=30)
+                    print_progress_bar(i + 1, len(train_dataloader), epoch + 1, num_epochs,
+                                       prefix='Training:', suffix=f'Loss: {loss.item():.4f}', length=30)
 
-                if (i + 1) % (len(train_dataloader) // 2) == 0:
-                    eval_metrics = self.evaluate_full(eval_dataloader, "Evaluation")
-                    self.logger.info(f"Full dataset metrics at epoch {epoch + 1}, step {i + 1}:")
-                    self.logger.info(f"  {eval_metrics['dataset']} dataset:")
-                    self.logger.info(f"    Loss: {eval_metrics['loss']:.4f}")
-                    self.logger.info(f"    Accuracy: {eval_metrics['accuracy']:.4f}")
-                    self.logger.info(f"    Perplexity: {eval_metrics['perplexity']:.4f}")
+                    if (i + 1) % (len(train_dataloader) // 2) == 0:
+                        eval_metrics = self.evaluate_full(eval_dataloader, "Evaluation")
+                        self.logger.info(f"Full dataset metrics at epoch {epoch + 1}, step {i + 1}:")
+                        self.logger.info(f"  {eval_metrics['dataset']} dataset:")
+                        self.logger.info(f"    Loss: {eval_metrics['loss']:.4f}")
+                        self.logger.info(f"    Accuracy: {eval_metrics['accuracy']:.4f}")
+                        self.logger.info(f"    Perplexity: {eval_metrics['perplexity']:.4f}")
 
-                    if eval_metrics['loss'] < self.best_eval_loss:
-                        self.best_eval_loss = eval_metrics['loss']
-                        self.save_checkpoint(epoch, optimizer, scheduler, self.best_eval_loss, is_best=True)
+                        if eval_metrics['loss'] < self.best_eval_loss:
+                            self.best_eval_loss = eval_metrics['loss']
+                            self.save_checkpoint(epoch, optimizer, scheduler, self.best_eval_loss, is_best=True)
+                except RuntimeError as e:
+                    log_error(self.logger, e, batch)
+                    continue  # Skip to the next batch
 
             avg_loss = total_loss / len(train_dataloader)
             self.logger.info(f"Epoch {epoch + 1}/{num_epochs}, Average Training Loss: {avg_loss:.4f}")
