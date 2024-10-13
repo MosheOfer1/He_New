@@ -98,12 +98,11 @@ class Trainer:
             "perplexity": perplexity
         }
 
-    def log_prediction(self, input_ids_1, input_ids_3, logits, step):
-        input_sequence_1 = input_ids_1[-1]
-        target_sequence = input_ids_3[-1]
-        predicted_ids = torch.argmax(logits[-1], dim=-1)
+    def log_prediction(self, input_ids_3, logits, step):
+        target_sequence = input_ids_3
+        predicted_ids = torch.argmax(logits, dim=-1)
 
-        input_text_1 = self.tokenizer1.decode(input_sequence_1, skip_special_tokens=True)
+        input_text_1 = self.tokenizer2.decode(target_sequence, skip_special_tokens=True)
 
         self.logger.info(f"Step {step}, Prediction vs Actual:")
         self.logger.info(f"Input 1: {input_text_1}")
@@ -202,7 +201,7 @@ class Trainer:
                                      f"Perplexity: {batch_metrics[2]:.4f}")
 
                 if global_step % display_interval == 0:
-                    self.log_prediction(input_ids_1, input_ids_3, logits, global_step)
+                    self.log_prediction(input_ids_3, logits, global_step)
                     # Log learning rates
                     for idx, param_group in enumerate(optimizer.param_groups):
                         self.logger.info(f"Learning rate (group {idx}): {param_group['lr']:.6f}")
