@@ -55,25 +55,32 @@ class TextDataset(Dataset):
         }
 
     def collate_fn(self, batch):
-        input_ids_1 = [item["input_ids_1"] for item in batch if item["input_ids_1"].numel() > 0]
-        attention_mask_1 = [item["attention_mask_1"] for item in batch if item["attention_mask_1"].numel() > 0]
-        input_ids_2 = [item["input_ids_2"] for item in batch if item["input_ids_2"].numel() > 0]
-        attention_mask_2 = [item["attention_mask_2"] for item in batch if item["attention_mask_2"].numel() > 0]
-        input_ids_3 = [item["input_ids_3"] for item in batch if item["input_ids_3"].numel() > 0]
-        attention_mask_3 = [item["attention_mask_3"] for item in batch if item["attention_mask_3"].numel() > 0]
+        def ensure_1d(tensor):
+            if tensor.dim() == 0:
+                return tensor.unsqueeze(0)
+            return tensor
+
+        input_ids_1 = [ensure_1d(item["input_ids_1"]) for item in batch if item["input_ids_1"].numel() > 0]
+        attention_mask_1 = [ensure_1d(item["attention_mask_1"]) for item in batch if item["attention_mask_1"].numel() > 0]
+        input_ids_2 = [ensure_1d(item["input_ids_2"]) for item in batch if item["input_ids_2"].numel() > 0]
+        attention_mask_2 = [ensure_1d(item["attention_mask_2"]) for item in batch if item["attention_mask_2"].numel() > 0]
+        input_ids_3 = [ensure_1d(item["input_ids_3"]) for item in batch if item["input_ids_3"].numel() > 0]
+        attention_mask_3 = [ensure_1d(item["attention_mask_3"]) for item in batch if item["attention_mask_3"].numel() > 0]
 
         # Check if any of the lists are empty after filtering
         if not all([input_ids_1, attention_mask_1, input_ids_2, attention_mask_2, input_ids_3, attention_mask_3]):
-            print("Empty sequence(s) found in batch. Skipping this batch.")
             return None
 
         # Pad each batch according to its respective tokenizer
-        padded_1 = torch.nn.utils.rnn.pad_sequence(input_ids_1, batch_first=True, padding_value=self.tokenizer1.pad_token_id)
-        padded_attention_1 = torch.nn.utils.rnn.pad_sequence(attention_mask_1, batch_first=True, padding_value=0)
-        padded_2 = torch.nn.utils.rnn.pad_sequence(input_ids_2, batch_first=True, padding_value=self.tokenizer2.pad_token_id)
-        padded_attention_2 = torch.nn.utils.rnn.pad_sequence(attention_mask_2, batch_first=True, padding_value=0)
-        padded_3 = torch.nn.utils.rnn.pad_sequence(input_ids_3, batch_first=True, padding_value=self.tokenizer3.pad_token_id)
-        padded_attention_3 = torch.nn.utils.rnn.pad_sequence(attention_mask_3, batch_first=True, padding_value=0)
+        try:
+            padded_1 = torch.nn.utils.rnn.pad_sequence(input_ids_1, batch_first=True, padding_value=self.tokenizer1.pad_token_id)
+            padded_attention_1 = torch.nn.utils.rnn.pad_sequence(attention_mask_1, batch_first=True, padding_value=0)
+            padded_2 = torch.nn.utils.rnn.pad_sequence(input_ids_2, batch_first=True, padding_value=self.tokenizer2.pad_token_id)
+            padded_attention_2 = torch.nn.utils.rnn.pad_sequence(attention_mask_2, batch_first=True, padding_value=0)
+            padded_3 = torch.nn.utils.rnn.pad_sequence(input_ids_3, batch_first=True, padding_value=self.tokenizer3.pad_token_id)
+            padded_attention_3 = torch.nn.utils.rnn.pad_sequence(attention_mask_3, batch_first=True, padding_value=0)
+        except Exception as e:
+            return None
 
         return {
             "input_ids_1": padded_1, "attention_mask_1": padded_attention_1,
