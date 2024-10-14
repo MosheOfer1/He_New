@@ -126,26 +126,26 @@ class CustomLLM(nn.Module):
 
         return logits
 
-    def prepare_inputs(self, sentence):
+    def prepare_inputs(self, sentence, tokenizer1, tokenizer2, tokenizer3, device):
         # Tokenizer 1: Hebrew sentence
-        inputs_1 = self.tokenizer1(sentence, return_tensors="pt")
-        input_ids_1 = inputs_1["input_ids"].to(self.device)
-        attention_mask_1 = inputs_1["attention_mask"].to(self.device)
+        inputs_1 = tokenizer1(sentence, return_tensors="pt")
+        input_ids_1 = inputs_1["input_ids"].to(device)
+        attention_mask_1 = inputs_1["attention_mask"].to(device)
 
         # Translate the sentence
         with torch.no_grad():
             translated_ids = self.he_en_model.generate(input_ids=input_ids_1, attention_mask=attention_mask_1)
-        translated_sentence = self.tokenizer1.decode(translated_ids[0], skip_special_tokens=True)
+        translated_sentence = tokenizer1.decode(translated_ids[0], skip_special_tokens=True)
 
         # Tokenizer 2: English translation
-        inputs_2 = self.tokenizer2(translated_sentence, return_tensors="pt")
-        input_ids_2 = inputs_2["input_ids"].to(self.device)
-        attention_mask_2 = inputs_2["attention_mask"].to(self.device)
+        inputs_2 = tokenizer2(translated_sentence, return_tensors="pt")
+        input_ids_2 = inputs_2["input_ids"].to(device)
+        attention_mask_2 = inputs_2["attention_mask"].to(device)
 
         # Tokenizer 3: Full Hebrew sentence
-        inputs_3 = self.tokenizer3(text_target=sentence, return_tensors="pt")
-        input_ids_3 = inputs_3["input_ids"].to(self.device)
-        attention_mask_3 = inputs_3["attention_mask"].to(self.device)
+        inputs_3 = tokenizer3(text_target=sentence, return_tensors="pt")
+        input_ids_3 = inputs_3["input_ids"].to(device)
+        attention_mask_3 = inputs_3["attention_mask"].to(device)
 
         return {
             "input_ids_1": input_ids_1,
@@ -156,20 +156,20 @@ class CustomLLM(nn.Module):
             "attention_mask_3": attention_mask_3
         }
 
-    def generate(self, sentence, max_length=50, temperature=1.0, top_k=50, top_p=0.95):
+    def generate(self, sentence, tokenizer1, tokenizer2, tokenizer3, device, max_length=50, temperature=1.0, top_k=50, top_p=0.95):
         self.eval()
 
         # Prepare input tensors
-        inputs = self.prepare_inputs(sentence)
+        inputs = self.prepare_inputs(sentence, tokenizer1, tokenizer2, tokenizer3, device)
         input_ids1 = inputs["input_ids_1"]
         input_ids2 = inputs["input_ids_2"]
         attention_mask1 = inputs["attention_mask_1"]
         attention_mask2 = inputs["attention_mask_2"]
 
         # Initialize the output sequence with a pad token and input_ids3
-        pad_token = torch.full((1, 1), self.en_he_decoder.config.pad_token_id, dtype=torch.long).to(self.device)
+        pad_token = torch.full((1, 1), self.en_he_decoder.config.pad_token_id, dtype=torch.long).to(device)
         generated_ids = torch.cat([pad_token, inputs["input_ids_3"]], dim=1)
-        attention_mask3 = torch.ones_like(generated_ids).to(self.device)
+        attention_mask3 = torch.ones_like(generated_ids).to(device)
 
         for _ in range(max_length - generated_ids.size(1)):
             # Forward pass
