@@ -126,7 +126,7 @@ class CustomLLM(nn.Module):
 
         return logits
 
-    def prepare_inputs(self, sentence, tokenizer1, tokenizer2, tokenizer3, device):
+    def prepare_inputs(self, sentence, he_en_model, tokenizer1, tokenizer2, tokenizer3, device):
         # Tokenizer 1: Hebrew sentence
         inputs_1 = tokenizer1(sentence, return_tensors="pt")
         input_ids_1 = inputs_1["input_ids"].to(device)
@@ -134,7 +134,7 @@ class CustomLLM(nn.Module):
 
         # Translate the sentence
         with torch.no_grad():
-            translated_ids = self.he_en_model.generate(input_ids=input_ids_1, attention_mask=attention_mask_1)
+            translated_ids = he_en_model.generate(input_ids=input_ids_1, attention_mask=attention_mask_1)
         translated_sentence = tokenizer1.decode(translated_ids[0], skip_special_tokens=True)
 
         # Tokenizer 2: English translation
@@ -156,11 +156,11 @@ class CustomLLM(nn.Module):
             "attention_mask_3": attention_mask_3
         }
 
-    def generate(self, sentence, tokenizer1, tokenizer2, tokenizer3, device, max_length=50, temperature=1.0, top_k=50, top_p=0.95):
+    def generate(self, sentence, he_en_model, tokenizer1, tokenizer2, tokenizer3, device, max_length=50, temperature=1.0, top_k=50, top_p=0.95):
         self.eval()
 
         # Prepare input tensors
-        inputs = self.prepare_inputs(sentence, tokenizer1, tokenizer2, tokenizer3, device)
+        inputs = self.prepare_inputs(sentence, he_en_model, tokenizer1, tokenizer2, tokenizer3, device)
         input_ids1 = inputs["input_ids_1"]
         input_ids2 = inputs["input_ids_2"]
         attention_mask1 = inputs["attention_mask_1"]
