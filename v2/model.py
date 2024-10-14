@@ -1,6 +1,7 @@
 import torch
 import torch.nn as nn
 from transformers.models.marian.modeling_marian import MarianDecoder, MarianEncoder
+import torch.nn.functional as F
 
 from utils import create_opt_attention_mask
 
@@ -124,6 +125,97 @@ class CustomLLM(nn.Module):
         logits = self.lm_head(x) + self.final_logits_bias
 
         return logits
+
+    def prepare_inputs(self, sentence):
+        # Tokenizer 1: Hebrew sentence
+        inputs_1 = self.tokenizer1(sentence, return_tensors="pt")
+        input_ids_1 = inputs_1["input_ids"].to(self.device)
+        attention_mask_1 = inputs_1["attention_mask"].to(self.device)
+
+        # Translate the sentence
+        with torch.no_grad():
+            translated_ids = self.he_en_model.generate(input_ids=input_ids_1, attention_mask=attention_mask_1)
+        translated_sentence = self.tokenizer1.decode(translated_ids[0], skip_special_tokens=True)
+
+        # Tokenizer 2: English translation
+        inputs_2 = self.tokenizer2(translated_sentence, return_tensors="pt")
+        input_ids_2 = inputs_2["input_ids"].to(self.device)
+        attention_mask_2 = inputs_2["attention_mask"].to(self.device)
+
+        # Tokenizer 3: Full Hebrew sentence
+        inputs_3 = self.tokenizer3(text_target=sentence, return_tensors="pt")
+        input_ids_3 = inputs_3["input_ids"].to(self.device)
+        attention_mask_3 = inputs_3["attention_mask"].to(self.device)
+
+        return {
+            "input_ids_1": input_ids_1,
+            "attention_mask_1": attention_mask_1,
+            "input_ids_2": input_ids_2,
+            "attention_mask_2": attention_mask_2,
+            "input_ids_3": input_ids_3,
+            "attention_mask_3": attention_mask_3
+        }
+
+    def generate(self, sentence, max_length=50, temperature=1.0, top_k=50, top_p=0.95):
+        self.eval()
+
+        # Prepare input tensors
+        inputs = self.prepare_inputs(sentence)
+        input_ids1 = inputs["input_ids_1"]
+        input_ids2 = inputs["input_ids_2"]
+        attention_mask1 = inputs["attention_mask_1"]
+        attention_mask2 = inputs["attention_mask_2"]
+
+        # Initialize the output sequence with a pad token and input_ids3
+        pad_token = torch.full((1, 1), self.en_he_decoder.config.pad_token_id, dtype=torch.long).to(self.device)
+        generated_ids = torch.cat([pad_token, inputs["input_ids_3"]], dim=1)
+        attention_mask3 = torch.ones_like(generated_ids).to(self.device)
+
+        for _ in range(max_length - generated_ids.size(1)):
+            # Forward pass
+            with torch.no_grad():
+                outputs = self(
+                    input_ids1=input_ids1,
+                    input_ids2=input_ids2,
+                    input_ids3=generated_ids,
+                    attention_mask1=attention_mask1,
+                    attention_mask2=attention_mask2,
+                    attention_mask3=attention_mask3
+                )
+
+            # Get the next token probabilities
+            next_token_logits = outputs[:, -1, :]
+
+            # Apply temperature
+            next_token_logits = next_token_logits / temperature
+
+            # Apply top-k filtering
+            if top_k > 0:
+                top_k_logits, top_k_indices = torch.topk(next_token_logits, top_k)
+                next_token_logits[next_token_logits < top_k_logits[:, [-1]]] = float('-inf')
+
+            # Apply top-p (nucleus) filtering
+            if top_p < 1.0:
+                sorted_logits, sorted_indices = torch.sort(next_token_logits, descending=True)
+                cumulative_probs = torch.cumsum(F.softmax(sorted_logits, dim=-1), dim=-1)
+                sorted_indices_to_remove = cumulative_probs > top_p
+                sorted_indices_to_remove[..., 1:] = sorted_indices_to_remove[..., :-1].clone()
+                sorted_indices_to_remove[..., 0] = 0
+                next_token_logits[sorted_indices[sorted_indices_to_remove]] = float('-inf')
+
+            # Sample the next token
+            probs = F.softmax(next_token_logits, dim=-1)
+            next_token = torch.multinomial(probs, num_samples=1)
+
+            # Append the new token to the sequence
+            generated_ids = torch.cat([generated_ids, next_token], dim=1)
+            attention_mask3 = torch.cat([attention_mask3, torch.ones_like(next_token)], dim=1)
+
+            # Check if we've generated an EOS token
+            if next_token.item() == self.en_he_decoder.config.eos_token_id:
+                break
+
+        return generated_ids
 
     @classmethod
     def load_pretrained(cls, checkpoint_path, he_en_model, en_he_model, llm_model, device):

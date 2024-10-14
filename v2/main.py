@@ -44,6 +44,7 @@ def main():
     parser.add_argument("--find-lr", action="store_true", help="Run learning rate finder before training")
     parser.add_argument("--lr-plot-path", type=str, default="lr_finder_plot.png",
                         help="Path to save the learning rate finder plot")
+    parser.add_argument("--generate", action="store_true", help="Run in generation mode")
 
     args = parser.parse_args()
 
@@ -57,16 +58,6 @@ def main():
     tokenizer2 = AutoTokenizer.from_pretrained(args.llm_model)
     tokenizer3 = MarianTokenizer.from_pretrained(args.en_he_model)
 
-    # Load sentences from the data file
-    with open(args.data_file, 'r', encoding='utf-8') as f:
-        sentences = f.readlines()
-    sentences = [line.strip() for line in sentences if line.strip()]
-
-    # Create dataloaders
-    train_dataloader, eval_dataloader = create_dataloaders(sentences, he_en_model, tokenizer1, tokenizer2, tokenizer3,
-                                                           batch_size=args.batch_size, train_split=args.train_split,
-                                                           device=args.device)
-
     if args.pretrained_model:
         # Load the pretrained CustomLLM
         print(f"Loading pretrained model from {args.pretrained_model}")
@@ -77,28 +68,52 @@ def main():
 
     # Move the model to the specified device
     custom_llm = custom_llm.to(args.device)
+    if args.generate:
+        print("Entering generation mode. Type 'quit' to exit.")
+        while True:
+            sentence = input("Enter a Hebrew sentence: ")
+            if sentence.lower() == 'quit':
+                break
+            try:
+                generated_ids = custom_llm.generate(sentence)
+                generated_text = tokenizer3.decode(generated_ids[0], skip_special_tokens=True)
+                print(f"Generated text: {generated_text}")
+            except Exception as e:
+                print(f"An error occurred during generation: {str(e)}")
+                print(f"Traceback: {traceback.format_exc()}")
+    else:
+        # Load sentences from the data file
+        with open(args.data_file, 'r', encoding='utf-8') as f:
+            sentences = f.readlines()
+        sentences = [line.strip() for line in sentences if line.strip()]
 
-    if args.find_lr:
-        best_lr = find_best_lr(custom_llm, train_dataloader, args.device, args.lr_plot_path)
-        print(f"Best learning rate found: {best_lr}")
-        args.learning_rate = best_lr / 10  # Use a slightly lower learning rate for training
+        # Create dataloaders
+        train_dataloader, eval_dataloader = create_dataloaders(sentences, he_en_model, tokenizer1, tokenizer2,
+                                                               tokenizer3,
+                                                               batch_size=args.batch_size, train_split=args.train_split,
+                                                               device=args.device)
 
-    # Set CUDA_LAUNCH_BLOCKING for better error reporting
-    os.environ['CUDA_LAUNCH_BLOCKING'] = '1'
+        if args.find_lr:
+            best_lr = find_best_lr(custom_llm, train_dataloader, args.device, args.lr_plot_path)
+            print(f"Best learning rate found: {best_lr}")
+            args.learning_rate = best_lr / 10  # Use a slightly lower learning rate for training
 
-    try:
-        # Train the model
-        train_llm(custom_llm, train_dataloader, eval_dataloader, tokenizer1, tokenizer3,
-                  num_epochs=args.num_epochs,
-                  learning_rate=args.learning_rate,
-                  device=args.device,
-                  log_dir=args.log_dir,
-                  save_dir=args.save_dir,
-                  checkpoint=args.checkpoint,
-                  display_interval=args.display_interval)
-    except Exception as e:
-        print(f"An error occurred during training: {str(e)}")
-        print(f"Traceback: {traceback.format_exc()}")
+        # Set CUDA_LAUNCH_BLOCKING for better error reporting
+        os.environ['CUDA_LAUNCH_BLOCKING'] = '1'
+
+        try:
+            # Train the model
+            train_llm(custom_llm, train_dataloader, eval_dataloader, tokenizer1, tokenizer3,
+                      num_epochs=args.num_epochs,
+                      learning_rate=args.learning_rate,
+                      device=args.device,
+                      log_dir=args.log_dir,
+                      save_dir=args.save_dir,
+                      checkpoint=args.checkpoint,
+                      display_interval=args.display_interval)
+        except Exception as e:
+            print(f"An error occurred during training: {str(e)}")
+            print(f"Traceback: {traceback.format_exc()}")
 
 
 if __name__ == "__main__":
