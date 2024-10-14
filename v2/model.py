@@ -156,7 +156,8 @@ class CustomLLM(nn.Module):
             "attention_mask_3": attention_mask_3
         }
 
-    def generate(self, sentence, he_en_model, tokenizer1, tokenizer2, tokenizer3, device, max_length=50, temperature=1.0, top_k=50, top_p=0.95):
+    def generate(self, sentence, he_en_model, tokenizer1, tokenizer2, tokenizer3, device, max_length=50,
+                 temperature=1.0, top_k=50, top_p=0.95):
         self.eval()
 
         # Prepare input tensors
@@ -183,14 +184,20 @@ class CustomLLM(nn.Module):
                     attention_mask3=attention_mask3
                 )
 
-            # Get the next token probabilities
+            # Get the next token logits
             next_token_logits = outputs[:, -1, :]
 
             # Apply temperature
             next_token_logits = next_token_logits / temperature
 
+            # Check for NaN or inf values
+            if torch.isnan(next_token_logits).any() or torch.isinf(next_token_logits).any():
+                print("Warning: NaN or inf values detected in next_token_logits")
+                next_token_logits = torch.nan_to_num(next_token_logits, nan=0.0, posinf=1e6, neginf=-1e6)
+
             # Apply top-k filtering
             if top_k > 0:
+                top_k = min(top_k, next_token_logits.size(-1))  # Safety check
                 top_k_logits, top_k_indices = torch.topk(next_token_logits, top_k)
                 next_token_logits[next_token_logits < top_k_logits[:, [-1]]] = float('-inf')
 
@@ -201,7 +208,11 @@ class CustomLLM(nn.Module):
                 sorted_indices_to_remove = cumulative_probs > top_p
                 sorted_indices_to_remove[..., 1:] = sorted_indices_to_remove[..., :-1].clone()
                 sorted_indices_to_remove[..., 0] = 0
-                next_token_logits[sorted_indices[sorted_indices_to_remove]] = float('-inf')
+
+                # Create a boolean mask instead of direct indexing
+                mask = torch.ones_like(next_token_logits, dtype=torch.bool)
+                mask.scatter_(1, sorted_indices, sorted_indices_to_remove)
+                next_token_logits[mask] = float('-inf')
 
             # Sample the next token
             probs = F.softmax(next_token_logits, dim=-1)
