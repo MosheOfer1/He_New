@@ -253,6 +253,16 @@ class CustomLLM(nn.Module):
             generated_ids = torch.cat([generated_ids, next_token], dim=1)
             attention_mask3 = torch.cat([attention_mask3, torch.ones_like(next_token)], dim=1)
 
+            # Convert the generated sequence to a sentence
+            current_sentence = tokenizer3.decode(generated_ids[0], skip_special_tokens=True)
+
+            # Use prepare_inputs to get updated inputs
+            inputs = self.prepare_inputs(current_sentence, he_en_model, tokenizer1, tokenizer2, tokenizer3, device)
+            input_ids1 = inputs["input_ids_1"]
+            input_ids2 = inputs["input_ids_2"]
+            attention_mask1 = inputs["attention_mask_1"]
+            attention_mask2 = inputs["attention_mask_2"]
+
             # Check if we've generated an EOS token
             if next_token.item() == tokenizer3.eos_token_id:
                 break
