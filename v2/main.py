@@ -75,7 +75,7 @@ def main():
             if sentence.lower() == 'quit':
                 break
             try:
-                generated_ids = custom_llm.generate(sentence, he_en_model, tokenizer1, tokenizer2, tokenizer3, args.device)
+                generated_ids = custom_llm.generate(sentence, he_en_model, tokenizer1, tokenizer2, tokenizer3, args.device, llm_model)
                 generated_text = tokenizer3.decode(generated_ids[0], skip_special_tokens=True)
                 print(f"Generated text: {generated_text}")
             except Exception as e:

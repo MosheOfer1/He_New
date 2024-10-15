@@ -75,7 +75,7 @@ class CustomLLM(nn.Module):
         for param in self.custom_encoder2.parameters():
             param.requires_grad = True
 
-    def forward(self, input_ids1, input_ids2, input_ids3, attention_mask1=None, attention_mask2=None, attention_mask3=None):
+    def forward(self, input_ids1, input_ids2, input_ids3, attention_mask1=None, attention_mask2=None, attention_mask3=None, llm=None, tokenizer2=None):
         # Ensure input tensors are of the correct data type
         input_ids1 = input_ids1.long()
         input_ids2 = input_ids2.long()
@@ -104,8 +104,22 @@ class CustomLLM(nn.Module):
             past_key_values_length=0
         )
 
+        # If llm is provided, process and print intermediate output
+        if llm is not None and tokenizer2 is not None:
+            intermediate_logits = llm.lm_head(x)
+            intermediate_tokens = torch.argmax(intermediate_logits, dim=-1)
+            intermediate_text = tokenizer2.decode(intermediate_tokens[0], skip_special_tokens=True)
+            print("Intermediate output (before main layers):", intermediate_text)
+
         for layer in self.main_layers:
             x = layer(hidden_states=x, attention_mask=llm_attention_mask)[0]
+
+        # If llm is provided, process and print intermediate output again
+        if llm is not None and tokenizer2 is not None:
+            intermediate_logits = llm.lm_head(x)
+            intermediate_tokens = torch.argmax(intermediate_logits, dim=-1)
+            intermediate_text = tokenizer2.decode(intermediate_tokens[0], skip_special_tokens=True)
+            print("Intermediate output (after main layers):", intermediate_text)
 
         x = self.linear2(x)
 
@@ -168,7 +182,7 @@ class CustomLLM(nn.Module):
         }
 
     def generate(self, sentence, he_en_model, tokenizer1, tokenizer2, tokenizer3, device, max_length=50,
-                 temperature=1.0, top_k=50, top_p=0.95):
+                 temperature=1.0, top_k=50, top_p=0.95, llm=None):
         self.eval()
 
         # Prepare initial input tensors
@@ -194,7 +208,9 @@ class CustomLLM(nn.Module):
                     input_ids3=generated_ids,
                     attention_mask1=attention_mask1,
                     attention_mask2=attention_mask2,
-                    attention_mask3=attention_mask3
+                    attention_mask3=attention_mask3,
+                    llm=llm,
+                    tokenizer2=tokenizer2
                 )
 
             # Get the next token logits
