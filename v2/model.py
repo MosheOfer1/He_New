@@ -147,32 +147,45 @@ class CustomLLM(nn.Module):
         input_ids_3 = inputs_3["input_ids"].to(device)
         attention_mask_3 = inputs_3["attention_mask"].to(device)
 
+        # Add <pad> to the beginning
+        batch_size, seq_length = input_ids_3.shape
+        new_input_ids3 = torch.full((batch_size, seq_length + 1), tokenizer3.pad_token_id, dtype=input_ids_3.dtype,
+                                    device=input_ids_3.device)
+        new_input_ids3[:, 1:] = input_ids_3
+
+        # Update attention mask
+        new_attention_mask3 = torch.zeros((batch_size, seq_length + 1), dtype=attention_mask_3.dtype,
+                                          device=attention_mask_3.device)
+        new_attention_mask3[:, 1:] = attention_mask_3
+
         return {
             "input_ids_1": input_ids_1,
             "attention_mask_1": attention_mask_1,
             "input_ids_2": input_ids_2,
             "attention_mask_2": attention_mask_2,
-            "input_ids_3": input_ids_3,
-            "attention_mask_3": attention_mask_3
+            "input_ids_3": new_input_ids3,
+            "attention_mask_3": new_attention_mask3
         }
 
     def generate(self, sentence, he_en_model, tokenizer1, tokenizer2, tokenizer3, device, max_length=50,
                  temperature=1.0, top_k=50, top_p=0.95):
         self.eval()
 
-        # Prepare input tensors
+        # Prepare initial input tensors
         inputs = self.prepare_inputs(sentence, he_en_model, tokenizer1, tokenizer2, tokenizer3, device)
         input_ids1 = inputs["input_ids_1"]
         input_ids2 = inputs["input_ids_2"]
         attention_mask1 = inputs["attention_mask_1"]
         attention_mask2 = inputs["attention_mask_2"]
 
-        # Initialize the output sequence with a pad token and input_ids3
-        pad_token = torch.full((1, 1), self.en_he_decoder.config.pad_token_id, dtype=torch.long).to(device)
-        generated_ids = torch.cat([pad_token, inputs["input_ids_3"]], dim=1)
-        attention_mask3 = torch.ones_like(generated_ids).to(device)
+        # Initialize the output sequence with the initial sentence from input_ids3
+        generated_ids = inputs["input_ids_3"].clone()
+        attention_mask3 = inputs["attention_mask_3"].clone()
 
-        for _ in range(max_length - generated_ids.size(1)):
+        # Calculate how many more tokens we can generate
+        remaining_length = max_length - generated_ids.size(1)
+
+        for _ in range(remaining_length):
             # Forward pass
             with torch.no_grad():
                 outputs = self(
@@ -223,7 +236,7 @@ class CustomLLM(nn.Module):
             attention_mask3 = torch.cat([attention_mask3, torch.ones_like(next_token)], dim=1)
 
             # Check if we've generated an EOS token
-            if next_token.item() == self.en_he_decoder.config.eos_token_id:
+            if next_token.item() == tokenizer3.eos_token_id:
                 break
 
         return generated_ids
