@@ -106,7 +106,9 @@ class CustomLLM(nn.Module):
 
         # If llm is provided, process and print intermediate output
         if llm is not None and tokenizer2 is not None:
-            intermediate_logits = llm.lm_head(x)
+            hidden_states = llm.model.decoder.final_layer_norm(x)
+            hidden_states = llm.model.decoder.project_out(hidden_states)
+            intermediate_logits = llm.lm_head(hidden_states)
             intermediate_tokens = torch.argmax(intermediate_logits, dim=-1)
             intermediate_text = tokenizer2.decode(intermediate_tokens[0], skip_special_tokens=True)
             print("Intermediate output (before main layers):", intermediate_text)
@@ -116,7 +118,9 @@ class CustomLLM(nn.Module):
 
         # If llm is provided, process and print intermediate output again
         if llm is not None and tokenizer2 is not None:
-            intermediate_logits = llm.lm_head(x)
+            hidden_states = llm.model.decoder.final_layer_norm(x)
+            hidden_states = llm.model.decoder.project_out(hidden_states)
+            intermediate_logits = llm.lm_head(hidden_states)
             intermediate_tokens = torch.argmax(intermediate_logits, dim=-1)
             intermediate_text = tokenizer2.decode(intermediate_tokens[0], skip_special_tokens=True)
             print("Intermediate output (after main layers):", intermediate_text)
