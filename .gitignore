@@ -160,3 +160,4 @@ cython_debug/
 .idea/
 v1/logs/
 v2/logs
+/logs
