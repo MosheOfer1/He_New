@@ -160,8 +160,8 @@ class CustomLLM(nn.Module):
 
         # Tokenizer 3: Full Hebrew sentence
         inputs_3 = tokenizer3(text_target=sentence, return_tensors="pt")
-        input_ids_3 = inputs_3["input_ids"].to(device)
-        attention_mask_3 = inputs_3["attention_mask"].to(device)
+        input_ids_3 = inputs_3["input_ids"][:, :-1].to(device)
+        attention_mask_3 = inputs_3["attention_mask"][:, :-1].to(device)
 
         # Add <pad> to the beginning
         batch_size, seq_length = input_ids_3.shape
@@ -198,10 +198,7 @@ class CustomLLM(nn.Module):
         generated_ids = inputs["input_ids_3"].clone()
         attention_mask3 = inputs["attention_mask_3"].clone()
 
-        # Calculate how many more tokens we can generate
-        remaining_length = max_length - generated_ids.size(1)
-
-        for _ in range(remaining_length):
+        for _ in range(max_length):
             # Forward pass
             with torch.no_grad():
                 outputs = self(

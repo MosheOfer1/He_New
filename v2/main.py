@@ -9,6 +9,7 @@ from model import CustomLLM
 from dataset import create_dataloaders
 from training import train_llm
 from lr_finder import find_best_lr
+from v2.utils import calculate_metrics, evaluate_text
 
 
 def main():
@@ -21,7 +22,7 @@ def main():
                         help="Name or path of the LLM model")
     parser.add_argument("--device", type=str, default="cuda" if torch.cuda.is_available() else "cpu",
                         help="Device to use for training (cuda or cpu)")
-    parser.add_argument("--data-file", type=str, required=True,
+    parser.add_argument("--data-file", type=str,
                         help="Path to the data file containing Hebrew sentences")
     parser.add_argument("--num-epochs", type=int, default=5,
                         help="Number of training epochs")
@@ -45,8 +46,20 @@ def main():
     parser.add_argument("--lr-plot-path", type=str, default="lr_finder_plot.png",
                         help="Path to save the learning rate finder plot")
     parser.add_argument("--generate", action="store_true", help="Run in generation mode")
+    parser.add_argument("--evaluate", action="store_true",
+                        help="Run evaluation on the test set")
+    parser.add_argument("--evaluate-text", type=str,
+                        help="Evaluate a specific text input")
+    parser.add_argument("--eval-batch-size", type=int, default=4,
+                        help="Batch size for evaluation")
+    parser.add_argument("--verbose", action="store_true",
+                        help="Print detailed token-by-token comparison")
 
     args = parser.parse_args()
+
+    # Validate arguments
+    if not args.generate and args.data_file is None:
+        parser.error("--data-file is required when not in generation mode")
 
     # Load models
     he_en_model = MarianMTModel.from_pretrained(args.he_en_model).to(args.device)
@@ -68,7 +81,57 @@ def main():
 
     # Move the model to the specified device
     custom_llm = custom_llm.to(args.device)
-    if args.generate:
+
+    if args.evaluate:
+        # Load the full dataset
+        with open(args.data_file, 'r', encoding='utf-8') as f:
+            sentences = f.readlines()
+        sentences = [line.strip() for line in sentences if line.strip()]
+
+        # Create dataloaders with evaluation batch size
+        eval_dataloader, _ = create_dataloaders(
+            sentences,
+            he_en_model,
+            tokenizer1,
+            tokenizer2,
+            tokenizer3,
+            batch_size=args.eval_batch_size,
+            train_split=1,
+            device=args.device
+        )
+
+        # Run evaluation
+        metrics = calculate_metrics(
+            custom_llm,
+            eval_dataloader,
+            tokenizer3,
+            args.device,
+            verbose=args.verbose
+        )
+
+        print("\nEvaluation Results:")
+        print(f"Accuracy: {metrics['accuracy']:.4f}")
+        print(f"Perplexity: {metrics['perplexity']:.4f}")
+
+    elif args.evaluate_text:
+        # Evaluate single text input
+        results = evaluate_text(
+            custom_llm,
+            args.evaluate_text,
+            he_en_model,
+            tokenizer1,
+            tokenizer2,
+            tokenizer3,
+            args.device
+        )
+
+        print("\nText Evaluation Results:")
+        print(f"Input text: {results['input_text']}")
+        print(f"Generated text: {results['generated_text']}")
+        print(f"Accuracy: {results['accuracy']:.4f}")
+        print(f"Perplexity: {results['perplexity']:.4f}")
+
+    elif args.generate:
         print("Entering generation mode. Type 'quit' to exit.")
         while True:
             sentence = input("Enter a Hebrew sentence: ")
@@ -77,7 +140,7 @@ def main():
             try:
                 generated_ids = custom_llm.generate(sentence, he_en_model, tokenizer1, tokenizer2, tokenizer3, args.device, llm=None)
                 generated_text = tokenizer3.decode(generated_ids[0], skip_special_tokens=True)
-                print(f"Generated text: {generated_text}")
+                print(f"Generated text:\n{generated_text}")
             except Exception as e:
                 print(f"An error occurred during generation: {str(e)}")
                 print(f"Traceback: {traceback.format_exc()}")

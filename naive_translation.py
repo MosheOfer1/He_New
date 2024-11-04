@@ -30,6 +30,13 @@ def translate_he_to_en(hebrew_text):
     logging.info(f"Translated Hebrew to English: '{hebrew_text}' -> '{english_text}'")
     return english_text
 
+def translate_en_to_he(english_text):
+    # Tokenize and translate English to Hebrew
+    inputs = en_to_he_tokenizer(english_text, return_tensors="pt", max_length=512, truncation=True)
+    translated_tokens = en_to_he_model.generate(**inputs)
+    hebrew_text = en_to_he_tokenizer.decode(translated_tokens[0], skip_special_tokens=True)
+    logging.info(f"Translated English to Hebrew: '{english_text}' -> '{hebrew_text}'")
+    return hebrew_text
 
 def generate_with_opt(english_text):
     # Tokenize and generate one word response using OPT
@@ -42,13 +49,13 @@ def generate_with_opt(english_text):
 
 def main():
     # Read Hebrew sentences from file
-    with open("../He_LLM/my_datasets/hebrew_text_for_tests.txt", "r", encoding="utf-8") as file:
+    with open("hebrew_text_for_tests.txt", "r", encoding="utf-8") as file:
         sentences = file.readlines()
 
     log_data = []
 
     for sentence in sentences:
-        sentence = sentence.strip()
+        sentence = sentence.strip().replace(".","")
         if not sentence:
             continue
 
@@ -61,13 +68,14 @@ def main():
         actual_last_word = words[-1]
 
         # Step 1: Translate Hebrew to English
-        english_text = translate_he_to_en(input_sentence)
+        english_text = translate_he_to_en(input_sentence).replace(".","")
 
         # Step 2: Generate response using OPT
         opt_generated_text = generate_with_opt(english_text)
 
-        # Step 3: Compare the generated word with the actual word
-        predicted_word = opt_generated_text.split()[-1] if opt_generated_text else ""
+        # Step 3: Translate the predicted word back to Hebrew
+        predicted_word_en = opt_generated_text.split()[-1] if opt_generated_text else ""
+        predicted_word = translate_en_to_he(predicted_word_en) if predicted_word_en else ""
 
         log_data.append({
             "Original Sentence": sentence,
