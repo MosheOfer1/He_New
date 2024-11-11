@@ -1,54 +1,74 @@
 import torch
 import torch.nn as nn
+from transformers import MarianConfig
 from transformers.models.marian.modeling_marian import MarianDecoder, MarianEncoder
 import torch.nn.functional as F
 
-from utils import create_opt_attention_mask
+from auto_encoder import DimensionAlignmentAutoencoder
 
-
-class EmbeddingLLM(nn.Module):
-    def __init__(self, original_model):
-        super().__init__()
-        self.embed_tokens = original_model.model.decoder.embed_tokens
-        self.project_in = original_model.model.decoder.project_in
-        self.embed_positions = original_model.model.decoder.embed_positions
-
-    def forward(self, input_ids, attention_mask=None):
-        # Get the embeddings
-        inputs_embeds = self.embed_tokens(input_ids)
-        inputs_embeds = self.project_in(inputs_embeds)
-
-        # Add positional embeddings
-        pos_embeds = self.embed_positions(attention_mask, 0)
-        hidden_states = inputs_embeds + pos_embeds
-
-        # Return the hidden states after embeddings
-        return hidden_states
 
 
 class CustomLLM(nn.Module):
-    def __init__(self, he_en_model, en_he_model, llm_model):
+    def __init__(self,
+                 he_en_model,
+                 en_he_model,
+                 llm_model,
+                 align_he_en: DimensionAlignmentAutoencoder=None,
+                 align_en_he: DimensionAlignmentAutoencoder=None,
+                 ):
         super().__init__()
 
         # Hebrew-English components
         self.he_en_model_encoder = he_en_model.model.encoder
 
         # First custom transformer layers
-        self.custom_embedding = EmbeddingLLM(llm_model)
-        self.custom_decoder1 = MarianDecoder(he_en_model.config)
+        self.embed_tokens = llm_model.model.embed_tokens
+
+        # Create a new decoder config with matching dimensions
+        decoder_config = MarianConfig(
+            d_model=llm_model.config.hidden_size,
+            encoder_attention_heads=he_en_model.config.encoder_attention_heads,
+            encoder_ffn_dim=he_en_model.config.encoder_ffn_dim,
+            encoder_layers=he_en_model.config.encoder_layers,
+            decoder_attention_heads=he_en_model.config.decoder_attention_heads,
+            decoder_ffn_dim=he_en_model.config.decoder_ffn_dim,
+            decoder_layers=he_en_model.config.decoder_layers,
+            max_length=he_en_model.config.max_length,
+            vocab_size=he_en_model.config.vocab_size,
+            scale_embedding=he_en_model.config.scale_embedding,
+            pad_token_id=he_en_model.config.pad_token_id,
+            eos_token_id=he_en_model.config.eos_token_id,
+            decoder_start_token_id=he_en_model.config.decoder_start_token_id,
+        )
+
+        # Dimension alignment layer
+        if align_he_en is None:
+            self.align_he_en = DimensionAlignmentAutoencoder(
+                input_dim=he_en_model.config.d_model,
+                target_dim=llm_model.config.hidden_size
+            ).encoder
+        else:
+            self.align_he_en = align_he_en.encoder
+        self.align_he_en_input_dim ,self.align_he_en_target_dim = he_en_model.config.d_model, llm_model.config.hidden_size
+
+        self.custom_decoder1 = MarianDecoder(decoder_config)
         self.custom_decoder1.set_input_embeddings(None)
 
-        # Linear layer between custom_decoder1 and main_layers
-        self.linear1 = nn.Linear(he_en_model.config.d_model, llm_model.config.hidden_size)
-
         # LLM layers (main body of the model)
-        self.main_layers = llm_model.model.decoder.layers
+        self.main_model = llm_model.model
+        self.main_model.set_input_embeddings(None)
 
-        # Linear layer between main_layers and custom_encoder2
-        self.linear2 = nn.Linear(llm_model.config.hidden_size, en_he_model.config.d_model)
+        if align_en_he is None:
+            self.align_en_he = DimensionAlignmentAutoencoder(
+                input_dim=llm_model.config.hidden_size,
+                target_dim=en_he_model.config.d_model
+            ).encoder
+        else:
+            self.align_en_he = align_en_he.encoder
+        self.align_en_he_input_dim ,self.align_en_he_target_dim = llm_model.config.hidden_size, en_he_model.config.d_model
 
         # Second custom transformer layers
-        self.custom_encoder2 = MarianEncoder(en_he_model.config, llm_model.model.decoder.embed_tokens)
+        self.custom_encoder2 = MarianEncoder(en_he_model.config, llm_model.model.embed_tokens)
         self.custom_encoder2.set_input_embeddings(None)
 
         # English-Hebrew components
@@ -63,10 +83,10 @@ class CustomLLM(nn.Module):
         for param in self.parameters():
             param.requires_grad = False
 
-        # Unfreeze the new linear layers
-        for param in self.linear1.parameters():
+        # Unfreeze the alignment and transformation layers
+        for param in self.align_he_en.parameters():
             param.requires_grad = True
-        for param in self.linear2.parameters():
+        for param in self.align_en_he.parameters():
             param.requires_grad = True
 
         # Unfreeze the custom decoder and encoder
@@ -74,6 +94,7 @@ class CustomLLM(nn.Module):
             param.requires_grad = True
         for param in self.custom_encoder2.parameters():
             param.requires_grad = True
+
 
     def forward(self, input_ids1, input_ids2, input_ids3, attention_mask1=None, attention_mask2=None, attention_mask3=None, llm=None, tokenizer2=None):
         # Ensure input tensors are of the correct data type
@@ -86,23 +107,25 @@ class CustomLLM(nn.Module):
             attention_mask=attention_mask1,
         ).last_hidden_state
 
-        inputs_embeds2 = self.custom_embedding(input_ids2, attention_mask2)
+        # Align Hebrew-English encoder output dimensions with LLM
+        he_en_encoder_output = self.encode(
+            self.align_he_en,
+            self.align_he_en_input_dim,
+            self.align_he_en_target_dim,
+            he_en_encoder_output,
+            attention_mask1
+        )
 
+        # Get embeddings for the second input
+        inputs_embeds2 = self.embed_tokens(input_ids2)
+
+        # Process through custom decoder
         x = self.custom_decoder1(
             inputs_embeds=inputs_embeds2,
             attention_mask=attention_mask2,
             encoder_hidden_states=he_en_encoder_output,
             encoder_attention_mask=attention_mask1,
         )[0]
-
-        x = self.linear1(x)
-
-        llm_attention_mask = create_opt_attention_mask(
-            attention_mask=attention_mask2,
-            input_shape=x.shape[:-1],
-            inputs_embeds=x,
-            past_key_values_length=0
-        )
 
         # If llm is provided, process and print intermediate output
         if llm is not None and tokenizer2 is not None:
@@ -112,8 +135,7 @@ class CustomLLM(nn.Module):
             intermediate_text = tokenizer2.decode(intermediate_tokens[0], skip_special_tokens=True)
             print("Intermediate output (before main layers):", intermediate_text)
 
-        for layer in self.main_layers:
-            x = layer(hidden_states=x, attention_mask=llm_attention_mask)[0]
+        x = self.main_model(inputs_embeds=x, attention_mask=attention_mask2).last_hidden_state
 
         # If llm is provided, process and print intermediate output again
         if llm is not None and tokenizer2 is not None:
@@ -123,7 +145,13 @@ class CustomLLM(nn.Module):
             intermediate_text = tokenizer2.decode(intermediate_tokens[0], skip_special_tokens=True)
             print("Intermediate output (after main layers):", intermediate_text)
 
-        x = self.linear2(x)
+        x = self.encode(
+            self.align_en_he,
+            self.align_en_he_input_dim,
+            self.align_en_he_target_dim,
+            x,
+            attention_mask2
+        )
 
         x = self.custom_encoder2(
             inputs_embeds=x,
@@ -267,7 +295,7 @@ class CustomLLM(nn.Module):
         return generated_ids
 
     @classmethod
-    def load_pretrained(cls, checkpoint_path, he_en_model, en_he_model, llm_model, device):
+    def load_pretrained(cls, checkpoint_path, he_en_model, en_he_model, llm_model, autoencoder1, autoencoder2, device):
         # Load only the model weights
         checkpoint = torch.load(checkpoint_path, map_location=device, weights_only=True)
 
@@ -281,9 +309,60 @@ class CustomLLM(nn.Module):
             # Assume it's just the state dict
             state_dict = checkpoint
 
-        model = cls(he_en_model, en_he_model, llm_model)
+        model = cls(he_en_model, en_he_model, llm_model, autoencoder1, autoencoder2)
 
         # Load the state dict
         model.load_state_dict(state_dict)
 
         return model.to(device)
+
+    def apply_attention_mask(self, x, attention_mask):
+        """
+        Apply attention mask to the input tensor.
+
+        Args:
+            x: Input tensor of shape (batch_size, seq_len, dim)
+            attention_mask: Attention mask of shape (batch_size, seq_len)
+
+        Returns:
+            Masked tensor of the same shape as input
+        """
+        # Expand mask to match input dimensions
+        mask = attention_mask.unsqueeze(-1).expand_as(x)
+
+        # Apply mask
+        masked_x = x * mask
+        return masked_x
+
+    def encode(self, encoder, input_dim, target_dim, x, attention_mask=None):
+        """
+        Encode input to target dimension.
+
+        Args:
+            target_dim:
+            input_dim:
+            encoder:
+            x: Input tensor of shape (batch_size, seq_len, input_dim)
+            attention_mask: Optional attention mask of shape (batch_size, seq_len)
+        """
+        batch_size = None
+        seq_len = None
+
+        # Handle 3D input
+        if len(x.shape) == 3:
+            batch_size, seq_len, _ = x.shape
+            # Reshape to 2D
+            x = x.contiguous().view(-1, input_dim)
+
+        # Apply encoder
+        encoded = encoder(x)
+
+        # Reshape back to 3D if needed
+        if batch_size is not None:
+            encoded = encoded.view(batch_size, seq_len, target_dim)
+
+        # Apply attention mask if provided
+        if attention_mask is not None:
+            encoded = self.apply_attention_mask(encoded, attention_mask)
+
+        return encoded

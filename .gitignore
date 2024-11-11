@@ -163,3 +163,7 @@ v2/logs
 /logs
 *.csv
 *.ods
+/v3/logs
+/v4/checkpoints
+/v3/model_checkpoints
+v2/.~lock.model_comparison_results.csv\#

@@ -9,7 +9,7 @@ from model import CustomLLM
 from dataset import create_dataloaders
 from training import train_llm
 from lr_finder import find_best_lr
-from v2.utils import calculate_metrics, evaluate_text
+from utils import evaluate_text, calculate_metrics
 
 
 def main():
@@ -46,6 +46,12 @@ def main():
     parser.add_argument("--lr-plot-path", type=str, default="lr_finder_plot.png",
                         help="Path to save the learning rate finder plot")
     parser.add_argument("--generate", action="store_true", help="Run in generation mode")
+    parser.add_argument("--temperature", type=float, default=1.0,
+                        help="Temperature for text generation sampling")
+    parser.add_argument("--top-k", type=int, default=50,
+                        help="Top-k value for text generation sampling")
+    parser.add_argument("--top-p", type=float, default=0.95,
+                        help="Top-p (nucleus sampling) value for text generation")
     parser.add_argument("--evaluate", action="store_true",
                         help="Run evaluation on the test set")
     parser.add_argument("--evaluate-text", type=str,
@@ -138,7 +144,18 @@ def main():
             if sentence.lower() == 'quit':
                 break
             try:
-                generated_ids = custom_llm.generate(sentence, he_en_model, tokenizer1, tokenizer2, tokenizer3, args.device, llm=None)
+                generated_ids = custom_llm.generate(
+                    sentence,
+                    he_en_model,
+                    tokenizer1,
+                    tokenizer2,
+                    tokenizer3,
+                    args.device,
+                    temperature=args.temperature,
+                    top_k=args.top_k,
+                    top_p=args.top_p,
+                    llm=None
+                )
                 generated_text = tokenizer3.decode(generated_ids[0], skip_special_tokens=True)
                 print(f"Generated text:\n{generated_text}")
             except Exception as e:
