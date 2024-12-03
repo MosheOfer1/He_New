@@ -266,6 +266,41 @@ class CustomLLM(nn.Module):
 
         return generated_ids
 
+    def get_logits(self, input_sentence, he_en_model, tokenizer1, tokenizer2, tokenizer3, device):
+        # Similar to generate method, but return logits instead of generating tokens
+        try:
+            self.eval()
+
+            # Prepare initial input tensors
+            inputs = self.prepare_inputs(input_sentence, he_en_model, tokenizer1, tokenizer2, tokenizer3, device)
+            input_ids1 = inputs["input_ids_1"]
+            input_ids2 = inputs["input_ids_2"]
+            attention_mask1 = inputs["attention_mask_1"]
+            attention_mask2 = inputs["attention_mask_2"]
+
+            # Initialize the output sequence with the initial sentence from input_ids3
+            generated_ids = inputs["input_ids_3"].clone()
+            attention_mask3 = inputs["attention_mask_3"].clone()
+
+
+            with torch.no_grad():
+                outputs = self(
+                    input_ids1=input_ids1,
+                    input_ids2=input_ids2,
+                    input_ids3=generated_ids,
+                    attention_mask1=attention_mask1,
+                    attention_mask2=attention_mask2,
+                    attention_mask3=attention_mask3
+                )
+
+            # Get the next token logits
+            next_token_logits = outputs[:, -1, :]
+
+            return next_token_logits
+        except Exception as e:
+            print(f"Error getting logits: {e}")
+            return None
+
     @classmethod
     def load_pretrained(cls, checkpoint_path, he_en_model, en_he_model, llm_model, device):
         # Load only the model weights

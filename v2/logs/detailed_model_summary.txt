@@ -19,9 +19,8 @@ CustomLLM(
     )
   )
   (custom_embedding): EmbeddingLLM(
-    (embed_tokens): Embedding(50272, 512, padding_idx=1)
-    (project_in): Linear(in_features=512, out_features=1024, bias=False)
-    (embed_positions): OPTLearnedPositionalEmbedding(2050, 1024)
+    (embed_tokens): Embedding(250880, 768, padding_idx=3)
+    (embed_positions): OPTLearnedPositionalEmbedding(2050, 768)
   )
   (custom_decoder1): MarianDecoder(
     (embed_tokens): None
@@ -49,23 +48,23 @@ CustomLLM(
       )
     )
   )
-  (linear1): Linear(in_features=1024, out_features=1024, bias=True)
+  (linear1): Linear(in_features=1024, out_features=768, bias=True)
   (main_layers): ModuleList(
-    (0-23): 24 x OPTDecoderLayer(
-      (self_attn): OPTAttention(
-        (k_proj): Linear(in_features=1024, out_features=1024, bias=True)
-        (v_proj): Linear(in_features=1024, out_features=1024, bias=True)
-        (q_proj): Linear(in_features=1024, out_features=1024, bias=True)
-        (out_proj): Linear(in_features=1024, out_features=1024, bias=True)
+    (0-11): 12 x OPTDecoderLayer(
+      (self_attn): OPTSdpaAttention(
+        (k_proj): Linear(in_features=768, out_features=768, bias=True)
+        (v_proj): Linear(in_features=768, out_features=768, bias=True)
+        (q_proj): Linear(in_features=768, out_features=768, bias=True)
+        (out_proj): Linear(in_features=768, out_features=768, bias=True)
       )
       (activation_fn): ReLU()
-      (self_attn_layer_norm): LayerNorm((1024,), eps=1e-05, elementwise_affine=True)
-      (fc1): Linear(in_features=1024, out_features=4096, bias=True)
-      (fc2): Linear(in_features=4096, out_features=1024, bias=True)
-      (final_layer_norm): LayerNorm((1024,), eps=1e-05, elementwise_affine=True)
+      (self_attn_layer_norm): LayerNorm((768,), eps=1e-05, elementwise_affine=True)
+      (fc1): Linear(in_features=768, out_features=3072, bias=True)
+      (fc2): Linear(in_features=3072, out_features=768, bias=True)
+      (final_layer_norm): LayerNorm((768,), eps=1e-05, elementwise_affine=True)
     )
   )
-  (linear2): Linear(in_features=1024, out_features=512, bias=True)
+  (linear2): Linear(in_features=768, out_features=512, bias=True)
   (custom_encoder2): MarianEncoder(
     (embed_tokens): None
     (embed_positions): MarianSinusoidalPositionalEmbedding(512, 512)

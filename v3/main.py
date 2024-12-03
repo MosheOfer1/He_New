@@ -16,7 +16,7 @@ from auto_encoder import DimensionAlignmentAutoencoder, AutoencoderPreTrainer
 
 def setup_autoencoders(args, he_en_model, llm_model, en_he_model, tokenizer1, tokenizer2, device, train_texts):
     """
-    Setup both autoencoders: either load pre-trained or train new ones
+    Setup both autoencoders: either load pre-trained or create new untrained ones
     """
     # Create the autoencoders
     autoencoder_he_en = DimensionAlignmentAutoencoder(
@@ -29,9 +29,10 @@ def setup_autoencoders(args, he_en_model, llm_model, en_he_model, tokenizer1, to
         target_dim=en_he_model.config.d_model
     ).to(device)
 
-    # Create directories for both autoencoders
-    os.makedirs(os.path.join(args.save_dir, 'autoencoder_he_en'), exist_ok=True)
-    os.makedirs(os.path.join(args.save_dir, 'autoencoder_en_he'), exist_ok=True)
+    # Create directories for both autoencoders only if training
+    if args.train_autoencoder:
+        os.makedirs(os.path.join(args.save_dir, 'autoencoder_he_en'), exist_ok=True)
+        os.makedirs(os.path.join(args.save_dir, 'autoencoder_en_he'), exist_ok=True)
 
     # Handle he_en autoencoder
     if args.load_pretrained_autoencoder and args.autoencoder_he_en_path and os.path.exists(args.autoencoder_he_en_path):
@@ -55,45 +56,30 @@ def setup_autoencoders(args, he_en_model, llm_model, en_he_model, tokenizer1, to
             save_dir=os.path.join(args.save_dir, 'autoencoder_he_en')
         )
         print(f"He-En autoencoder training completed with best loss: {best_loss_he_en}")
+    else:
+        print("Using untrained he-en autoencoder")
 
     # Handle en_he autoencoder
     if args.load_pretrained_autoencoder and args.autoencoder_en_he_path and os.path.exists(args.autoencoder_en_he_path):
         print(f"Loading pre-trained en-he autoencoder from {args.autoencoder_en_he_path}")
         checkpoint = torch.load(args.autoencoder_en_he_path, map_location=device, weights_only=True)
         autoencoder_en_he.load_state_dict(checkpoint['model_state_dict'])
-    else:
+    elif args.train_autoencoder:
         print("Training new en-he autoencoder...")
 
-        # Get training sentences based on arguments
+        # Get training sentences only if training
         if args.use_english_dataset:
             print(f"Loading English dataset (using {args.english_dataset_size} sentences)...")
             try:
                 dataset = load_dataset("agentlans/high-quality-english-sentences")
-                # Get the specified number of sentences from the training split
                 english_texts = dataset['train']['text'][:args.english_dataset_size]
                 print(f"Loaded {len(english_texts)} sentences from the English dataset")
             except Exception as e:
                 print(f"Error loading English dataset: {str(e)}")
                 print("Falling back to translated texts...")
-                # Fallback to translation
-                print("Translating training texts to English...")
-                english_texts = []
-                for sentence in tqdm(train_texts):
-                    inputs = tokenizer1(sentence, return_tensors="pt", padding=True).to(device)
-                    with torch.no_grad():
-                        translated_ids = he_en_model.generate(**inputs)
-                        translated_text = tokenizer1.decode(translated_ids[0], skip_special_tokens=True)
-                        english_texts.append(translated_text)
+                english_texts = translate_texts(train_texts, he_en_model, tokenizer1, device)
         else:
-            # Use translation method
-            print("Translating training texts to English...")
-            english_texts = []
-            for sentence in tqdm(train_texts):
-                inputs = tokenizer1(sentence, return_tensors="pt", padding=True).to(device)
-                with torch.no_grad():
-                    translated_ids = he_en_model.generate(**inputs)
-                    translated_text = tokenizer1.decode(translated_ids[0], skip_special_tokens=True)
-                    english_texts.append(translated_text)
+            english_texts = translate_texts(train_texts, he_en_model, tokenizer1, device)
 
         trainer_en_he = AutoencoderPreTrainer(
             autoencoder=autoencoder_en_he,
@@ -110,24 +96,40 @@ def setup_autoencoders(args, he_en_model, llm_model, en_he_model, tokenizer1, to
             save_dir=os.path.join(args.save_dir, 'autoencoder_en_he')
         )
         print(f"En-He autoencoder training completed with best loss: {best_loss_en_he}")
+    else:
+        print("Using untrained en-he autoencoder")
 
-    # Load the best model weights after training
-    for autoencoder, path in [
-        (autoencoder_he_en, os.path.join(args.save_dir, 'autoencoder_he_en', 'best_autoencoder.pt')),
-        (autoencoder_en_he, os.path.join(args.save_dir, 'autoencoder_en_he', 'best_autoencoder.pt'))]:
-        if os.path.exists(path):
-            checkpoint = torch.load(path, map_location=device, weights_only=True)
-            autoencoder.load_state_dict(checkpoint['model_state_dict'])
-            autoencoder = autoencoder.to(device)
+    # Load the best model weights after training (only if they exist)
+    if args.train_autoencoder:
+        for autoencoder, path in [
+            (autoencoder_he_en, os.path.join(args.save_dir, 'autoencoder_he_en', 'best_autoencoder.pt')),
+            (autoencoder_en_he, os.path.join(args.save_dir, 'autoencoder_en_he', 'best_autoencoder.pt'))]:
+            if os.path.exists(path):
+                checkpoint = torch.load(path, map_location=device, weights_only=True)
+                autoencoder.load_state_dict(checkpoint['model_state_dict'])
+                autoencoder = autoencoder.to(device)
 
     return autoencoder_he_en, autoencoder_en_he
+
+
+def translate_texts(texts, he_en_model, tokenizer1, device):
+    """Helper function to translate Hebrew texts to English"""
+    print("Translating training texts to English...")
+    english_texts = []
+    for sentence in tqdm(texts):
+        inputs = tokenizer1(sentence, return_tensors="pt", padding=True).to(device)
+        with torch.no_grad():
+            translated_ids = he_en_model.generate(**inputs)
+            translated_text = tokenizer1.decode(translated_ids[0], skip_special_tokens=True)
+            english_texts.append(translated_text)
+    return english_texts
 
 
 def add_autoencoder_args(parser):
     group = parser.add_argument_group('Autoencoder')
 
     # Control flags
-    group.add_argument('--train_autoencoder', action='store_true',
+    group.add_argument('--train_autoencoder', action='store_true', default=False,
                        help='Whether to train new autoencoders')
     group.add_argument('--load_pretrained_autoencoder', action='store_true',
                        help='Whether to load pre-trained autoencoders')
@@ -217,22 +219,6 @@ def main():
     tokenizer2 = AutoTokenizer.from_pretrained(args.llm_model)
     tokenizer3 = MarianTokenizer.from_pretrained(args.en_he_model)
 
-    # Load sentences from the data file
-    with open(args.data_file, 'r', encoding='utf-8') as f:
-        sentences = f.readlines()
-    sentences = [line.strip() for line in sentences if line.strip()]
-
-    # Setup both autoencoders
-    autoencoder_he_en, autoencoder_en_he = setup_autoencoders(
-        args=args,
-        he_en_model=he_en_model,
-        llm_model=llm_model,
-        en_he_model=en_he_model,
-        tokenizer1=tokenizer1,
-        tokenizer2=tokenizer2,
-        device=args.device,
-        train_texts=sentences
-    )
     if args.pretrained_model:
         # Load the pretrained CustomLLM
         print(f"Loading pretrained model from {args.pretrained_model}")
@@ -241,18 +227,34 @@ def main():
             he_en_model,
             en_he_model,
             llm_model,
-            autoencoder_he_en,
-            autoencoder_en_he,
-            args.device
+            args.device,
+            tokenizer3=tokenizer3
         )
     else:
+        # Load sentences from the data file
+        with open(args.data_file, 'r', encoding='utf-8') as f:
+            sentences = f.readlines()
+        sentences = [line.strip() for line in sentences if line.strip()]
+
+        # Setup both autoencoders
+        autoencoder_he_en, autoencoder_en_he = setup_autoencoders(
+            args=args,
+            he_en_model=he_en_model,
+            llm_model=llm_model,
+            en_he_model=en_he_model,
+            tokenizer1=tokenizer1,
+            tokenizer2=tokenizer2,
+            device=args.device,
+            train_texts=sentences
+        )
         # Create a new CustomLLM with both autoencoders
         custom_llm = CustomLLM(
             he_en_model,
             en_he_model,
             llm_model,
             align_he_en=autoencoder_he_en,
-            align_en_he=autoencoder_en_he
+            align_en_he=autoencoder_en_he,
+            tokenizer3=tokenizer3
         )
 
     # Move the model to the specified device
@@ -324,7 +326,7 @@ def main():
                     temperature=args.temperature,
                     top_k=args.top_k,
                     top_p=args.top_p,
-                    llm=None
+                    llm=None,
                 )
                 generated_text = tokenizer3.decode(generated_ids[0], skip_special_tokens=True)
                 print(f"Generated text:\n{generated_text}")

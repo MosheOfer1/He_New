@@ -1,0 +1,17 @@
+{
+  "he_en_model": "Helsinki-NLP/opus-mt-tc-big-he-en",
+  "llm_model": "bigscience/bloomz-560m",
+  "train_data": "ynet_256k.txt",
+  "val_split": 0.1,
+  "batch_size": 4,
+  "learning_rate": 2e-05,
+  "epochs": 5,
+  "max_length": 512,
+  "output_dir": "output",
+  "validate_every": 1,
+  "seed": 42,
+  "device": "cuda",
+  "generate": false,
+  "input_text": null,
+  "model_path": null
+}

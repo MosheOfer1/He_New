@@ -1,0 +1,61 @@
+Transformer1(
+  (main_model): MarianMTModel(
+    (model): MarianModel(
+      (shared): Embedding(151936, 896)
+      (encoder): MarianEncoder(
+        (embed_tokens): Embedding(151936, 896)
+        (embed_positions): MarianSinusoidalPositionalEmbedding(1024, 896)
+        (layers): ModuleList(
+          (0-5): 6 x MarianEncoderLayer(
+            (self_attn): MarianAttention(
+              (k_proj): Linear(in_features=896, out_features=896, bias=True)
+              (v_proj): Linear(in_features=896, out_features=896, bias=True)
+              (q_proj): Linear(in_features=896, out_features=896, bias=True)
+              (out_proj): Linear(in_features=896, out_features=896, bias=True)
+            )
+            (self_attn_layer_norm): LayerNorm((896,), eps=1e-05, elementwise_affine=True)
+            (activation_fn): GELUActivation()
+            (fc1): Linear(in_features=896, out_features=4096, bias=True)
+            (fc2): Linear(in_features=4096, out_features=896, bias=True)
+            (final_layer_norm): LayerNorm((896,), eps=1e-05, elementwise_affine=True)
+          )
+        )
+      )
+      (decoder): MarianDecoder(
+        (embed_tokens): Embedding(151936, 896)
+        (embed_positions): MarianSinusoidalPositionalEmbedding(1024, 896)
+        (layers): ModuleList(
+          (0-5): 6 x MarianDecoderLayer(
+            (self_attn): MarianAttention(
+              (k_proj): Linear(in_features=896, out_features=896, bias=True)
+              (v_proj): Linear(in_features=896, out_features=896, bias=True)
+              (q_proj): Linear(in_features=896, out_features=896, bias=True)
+              (out_proj): Linear(in_features=896, out_features=896, bias=True)
+            )
+            (activation_fn): GELUActivation()
+            (self_attn_layer_norm): LayerNorm((896,), eps=1e-05, elementwise_affine=True)
+            (encoder_attn): MarianAttention(
+              (k_proj): Linear(in_features=896, out_features=896, bias=True)
+              (v_proj): Linear(in_features=896, out_features=896, bias=True)
+              (q_proj): Linear(in_features=896, out_features=896, bias=True)
+              (out_proj): Linear(in_features=896, out_features=896, bias=True)
+            )
+            (encoder_attn_layer_norm): LayerNorm((896,), eps=1e-05, elementwise_affine=True)
+            (fc1): Linear(in_features=896, out_features=4096, bias=True)
+            (fc2): Linear(in_features=4096, out_features=896, bias=True)
+            (final_layer_norm): LayerNorm((896,), eps=1e-05, elementwise_affine=True)
+          )
+        )
+      )
+    )
+    (lm_head): Linear(in_features=896, out_features=151936, bias=False)
+  )
+  (align_he_en): Sequential(
+    (0): Linear(in_features=1024, out_features=1792, bias=True)
+    (1): LayerNorm((1792,), eps=1e-05, elementwise_affine=True)
+    (2): GELU(approximate='none')
+    (3): Dropout(p=0.1, inplace=False)
+    (4): Linear(in_features=1792, out_features=896, bias=True)
+    (5): LayerNorm((896,), eps=1e-05, elementwise_affine=True)
+  )
+)

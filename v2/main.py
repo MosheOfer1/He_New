@@ -3,7 +3,7 @@ import os
 import traceback
 
 import torch
-from transformers import AutoTokenizer, OPTForCausalLM, MarianMTModel, MarianTokenizer
+from transformers import AutoTokenizer, OPTForCausalLM, MarianMTModel, MarianTokenizer, AutoModelForCausalLM
 
 from model import CustomLLM
 from dataset import create_dataloaders
@@ -70,7 +70,7 @@ def main():
     # Load models
     he_en_model = MarianMTModel.from_pretrained(args.he_en_model).to(args.device)
     en_he_model = MarianMTModel.from_pretrained(args.en_he_model).to(args.device)
-    llm_model = OPTForCausalLM.from_pretrained(args.llm_model).to(args.device)
+    llm_model = AutoModelForCausalLM.from_pretrained(args.llm_model).to(args.device)
 
     # Load tokenizers
     tokenizer1 = MarianTokenizer.from_pretrained(args.he_en_model)

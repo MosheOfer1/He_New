@@ -18,7 +18,7 @@ class TextDataset(Dataset):
         return len(self.sentences)
 
     def __getitem__(self, idx):
-        original_sentence = self.sentences[idx]
+        original_sentence = self.sentences[idx].replace(".","")
 
         # Tokenizer 1: Hebrew sentence with tokenized output
         inputs_1 = self.tokenizer1(original_sentence, return_tensors="pt")

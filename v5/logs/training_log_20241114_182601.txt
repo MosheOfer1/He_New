@@ -1,0 +1,82 @@
+2024-11-14 18:26:01,204 - TrainingLogger - INFO - 
+Detailed Model Architecture:
+2024-11-14 18:26:01,204 - TrainingLogger - INFO - Transformer1(
+  (main_model): MarianMTModel(
+    (model): MarianModel(
+      (shared): None
+      (encoder): MarianEncoder(
+        (embed_tokens): None
+        (embed_positions): MarianSinusoidalPositionalEmbedding(1024, 896)
+        (layers): ModuleList(
+          (0-5): 6 x MarianEncoderLayer(
+            (self_attn): MarianAttention(
+              (k_proj): Linear(in_features=896, out_features=896, bias=True)
+              (v_proj): Linear(in_features=896, out_features=896, bias=True)
+              (q_proj): Linear(in_features=896, out_features=896, bias=True)
+              (out_proj): Linear(in_features=896, out_features=896, bias=True)
+            )
+            (self_attn_layer_norm): LayerNorm((896,), eps=1e-05, elementwise_affine=True)
+            (activation_fn): GELUActivation()
+            (fc1): Linear(in_features=896, out_features=4096, bias=True)
+            (fc2): Linear(in_features=4096, out_features=896, bias=True)
+            (final_layer_norm): LayerNorm((896,), eps=1e-05, elementwise_affine=True)
+          )
+        )
+      )
+      (decoder): MarianDecoder(
+        (embed_tokens): None
+        (embed_positions): MarianSinusoidalPositionalEmbedding(1024, 896)
+        (layers): ModuleList(
+          (0-5): 6 x MarianDecoderLayer(
+            (self_attn): MarianAttention(
+              (k_proj): Linear(in_features=896, out_features=896, bias=True)
+              (v_proj): Linear(in_features=896, out_features=896, bias=True)
+              (q_proj): Linear(in_features=896, out_features=896, bias=True)
+              (out_proj): Linear(in_features=896, out_features=896, bias=True)
+            )
+            (activation_fn): GELUActivation()
+            (self_attn_layer_norm): LayerNorm((896,), eps=1e-05, elementwise_affine=True)
+            (encoder_attn): MarianAttention(
+              (k_proj): Linear(in_features=896, out_features=896, bias=True)
+              (v_proj): Linear(in_features=896, out_features=896, bias=True)
+              (q_proj): Linear(in_features=896, out_features=896, bias=True)
+              (out_proj): Linear(in_features=896, out_features=896, bias=True)
+            )
+            (encoder_attn_layer_norm): LayerNorm((896,), eps=1e-05, elementwise_affine=True)
+            (fc1): Linear(in_features=896, out_features=4096, bias=True)
+            (fc2): Linear(in_features=4096, out_features=896, bias=True)
+            (final_layer_norm): LayerNorm((896,), eps=1e-05, elementwise_affine=True)
+          )
+        )
+      )
+    )
+    (lm_head): Linear(in_features=896, out_features=151936, bias=False)
+  )
+  (align_he_en): Sequential(
+    (0): Linear(in_features=1024, out_features=1792, bias=True)
+    (1): LayerNorm((1792,), eps=1e-05, elementwise_affine=True)
+    (2): GELU(approximate='none')
+    (3): Dropout(p=0.1, inplace=False)
+    (4): Linear(in_features=1792, out_features=896, bias=True)
+    (5): LayerNorm((896,), eps=1e-05, elementwise_affine=True)
+  )
+)
+2024-11-14 18:26:01,205 - TrainingLogger - INFO - 
+Total parameters: 287,479,680
+2024-11-14 18:26:01,205 - TrainingLogger - INFO - Trainable parameters: 285,644,672
+2024-11-14 18:26:01,205 - TrainingLogger - INFO - Percentage of trainable parameters: 99.36%
+2024-11-14 18:26:01,205 - TrainingLogger - INFO - 
+Detailed Layer-wise Information:
+2024-11-14 18:26:01,205 - TrainingLogger - INFO - 
+main_model:
+2024-11-14 18:26:01,205 - TrainingLogger - INFO -   Total params: 284,030,976
+2024-11-14 18:26:01,205 - TrainingLogger - INFO -   Trainable params: 282,195,968
+2024-11-14 18:26:01,205 - TrainingLogger - INFO - 
+align_he_en:
+2024-11-14 18:26:01,205 - TrainingLogger - INFO -   Total params: 3,448,704
+2024-11-14 18:26:01,205 - TrainingLogger - INFO -   Trainable params: 3,448,704
+2024-11-14 18:26:01,205 - TrainingLogger - INFO -     In features: 1024
+2024-11-14 18:26:01,205 - TrainingLogger - INFO -     Out features: 1792
+2024-11-14 18:26:01,205 - TrainingLogger - INFO -     In features: 1792
+2024-11-14 18:26:01,205 - TrainingLogger - INFO -     Out features: 896
+2024-11-14 18:26:01,206 - TrainingLogger - INFO - Detailed model summary has been saved to 'detailed_model_summary.txt'

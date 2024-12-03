@@ -185,20 +185,27 @@ class Trainer:
                                          device=input_ids_3.device)
                     targets[:, :-1] = new_input_ids3[:, 1:]  # Shift right by one position
 
-                    # Use attention_mask3 to find the last non-padded position for each sequence
-                    last_non_pad = attention_mask_3.sum(dim=1) - 1  # Subtract 1 to get the last valid index
-                    for idx in range(batch_size):
-                        if last_non_pad[idx] < seq_length - 1:
-                            targets[idx, last_non_pad[idx] + 1] = end_token_id
-                        else:
-                            targets[idx, -1] = end_token_id
-                    # Log the shape and first sequence of targets
-                    self.logger.debug(f"targets shape: {targets.shape}")
-                    self.logger.debug(f"targets first sequence: {targets[0].tolist()}")
+                    # Calculate loss only for the last token
+                    # Find the last non-padded position for each sequence
+                    last_non_pad = attention_mask_3.sum(dim=1) - 1  # Get last valid index
 
-                    # Calculate loss
-                    loss = F.cross_entropy(logits.view(-1, logits.size(-1)), targets.view(-1),
-                                           ignore_index=self.pad_token_id)
+                    # Create a mask that's 1 only at the last token position
+                    mask = torch.zeros_like(targets)
+                    for idx in range(batch_size):
+                        mask[idx, last_non_pad[idx]] = 1
+
+                    # Reshape logits and targets
+                    flat_logits = logits.view(-1, logits.size(-1))
+                    flat_targets = targets.view(-1)
+                    flat_mask = mask.view(-1)
+
+                    # Get only the logits and targets for the last token
+                    last_token_logits = flat_logits[flat_mask.bool()]
+                    last_token_targets = flat_targets[flat_mask.bool()]
+
+                    # Calculate loss only for last tokens
+                    loss = F.cross_entropy(last_token_logits, last_token_targets)
+
                     loss.backward()
                     optimizer.step()
 
