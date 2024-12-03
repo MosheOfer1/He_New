@@ -44,6 +44,60 @@ class BaseCompletionApproach:
         raise NotImplementedError
 
 
+class DirectHebrewApproach(BaseCompletionApproach):
+    def __init__(self, model_path: str, device: str):
+        """
+        Initialize the direct Hebrew approach using a model trained on Hebrew text.
+
+        Args:
+            model_path: Path to the pretrained model
+            tokenizer_path: Path to the tokenizer
+            device: Device to run the model on ('cuda' or 'cpu')
+        """
+        self.device = device
+        self.tokenizer = AutoTokenizer.from_pretrained(model_path)
+        self.model = AutoModelForCausalLM.from_pretrained(model_path).to(device)
+        self.model.eval()
+
+    def process_sentence(self, sentence: str) -> ModelOutput:
+        # Split sentence to get the last word
+        sentence = sentence.replace(".", "")
+        words = sentence.split()
+        truncated_sentence = " ".join(words[:-1])
+        actual_word = words[-1]
+
+        # Prepare input for the model
+        inputs = self.tokenizer(truncated_sentence, return_tensors="pt").to(self.device)
+
+        # Generate completion
+        generation_config = {
+            "max_new_tokens": 10,
+            "do_sample": True,
+            "temperature": 0.7,
+            "pad_token_id": self.tokenizer.pad_token_id,
+            "eos_token_id": self.tokenizer.encode(" ")[0],  # Use space as EOS token
+        }
+
+        outputs = self.model.generate(**inputs, **generation_config)
+        completion = self.tokenizer.decode(outputs[0], skip_special_tokens=True)
+
+        # Extract the predicted word (everything after the input prompt)
+        predicted_text = completion[len(truncated_sentence):].strip()
+        predicted_word = predicted_text.split()[0] if predicted_text else ""
+
+        return ModelOutput(
+            original_sentence=sentence,
+            truncated_sentence=truncated_sentence,
+            english_translation="",  # No translation needed
+            llm_completion="",  # No English LLM completion
+            final_translation=completion,
+            predicted_word=predicted_word,
+            actual_word=actual_word,
+            is_correct=predicted_word == actual_word,
+            approach_name="direct_hebrew"
+        )
+
+
 class NaiveApproach(BaseCompletionApproach):
     def __init__(self, he_to_en_model: TranslationModel, en_to_he_model: TranslationModel, llm_model: str, device: str):
         self.he_to_en = he_to_en_model
@@ -314,7 +368,8 @@ def main():
     approaches = [
         NaiveApproach(he_to_en, en_to_he, args.llm_model, args.device),
         SoftPromptApproach(he_to_en, en_to_he, args.soft_prompt_model, args.device),
-        CustomModelApproach(he_to_en, en_to_he, args.llm_model, args.custom_model, args.device)
+        CustomModelApproach(he_to_en, en_to_he, args.llm_model, args.custom_model, args.device),
+        DirectHebrewApproach(args.llm_model, args.device)
     ]
 
     # Load test sentences
