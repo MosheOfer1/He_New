@@ -26,7 +26,7 @@ class CustomLLM(nn.Module):
         self.he_en_model_encoder = he_en_model.model.encoder
 
         # First custom transformer layers
-        self.embed_tokens = llm_model.base_model.word_embeddings
+        self.embed_tokens = llm_model.base_model.embed_tokens if hasattr(llm_model.base_model, 'embed_tokens') else llm_model.base_model.word_embeddings
 
         # Create a new decoder config with matching dimensions
         decoder_config = MarianConfig(

@@ -167,3 +167,9 @@ v2/logs
 /v4/checkpoints
 /v3/model_checkpoints
 v2/.~lock.model_comparison_results.csv\#
+*.csv#
+/v3/bloomz-hebrew-finetuned
+/v3/logs_bloomz
+/v3/logs_bloomz
+/v3/llama_logs
+/v3/wandb

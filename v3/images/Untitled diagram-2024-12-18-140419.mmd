@@ -1,0 +1,72 @@
+---
+config:
+  layout: fixed
+---
+flowchart TD
+ subgraph trainable[" "]
+    direction LR
+        dec1[/"Custom LR-HR Decoder"\]
+        note1["Cross Attention"]
+        custom_enc2[\"Custom HR-LR Encoder"/]
+  end
+ subgraph pretrained[" "]
+    direction LR
+        lr_hr_enc[\"LR-HR Encoder"/]
+        main_llm["Main LLM Layers"]
+        dec2[/"HR-LR Decoder"\]
+        note2["Cross Attention"]
+  end
+    llm_emb["LLM Embeddings"] --> note1
+    lr_hr_enc --> note1
+    note1 --> dec1
+    dec1 --> main_llm
+    main_llm <--> custom_enc2
+    custom_enc2 --> note2
+    note2 --> dec2
+    dec2 --> output["Output Logits"]
+    n4["Target Low-Resource"] --> n5["LR-HR Embeddings"]
+    n3["Input High-Resource"] --> llm_emb
+    input_lr["Input Low-Resource"] --> n2["LR-HR Embeddings"]
+    n1["**Trainable Components**"] ~~~ trainable
+    n2 --> lr_hr_enc
+    n5 --> dec2
+    n6["**Pre-Trained Components**"]
+    n4@{ shape: rect}
+    n5@{ shape: rect}
+    n3@{ shape: rect}
+    n2@{ shape: rect}
+    n1@{ shape: text}
+    n6@{ shape: text}
+     dec1:::trainableComp
+     dec1:::Peach
+     note1:::noBorder
+     custom_enc2:::trainableComp
+     custom_enc2:::Peach
+     lr_hr_enc:::pretrainedComp
+     lr_hr_enc:::Pine
+     main_llm:::pretrainedComp
+     main_llm:::Pine
+     dec2:::pretrainedComp
+     dec2:::Pine
+     note2:::noBorder
+     note2:::noBorder
+     llm_emb:::embedding
+     output:::output
+     n4:::input
+     n5:::embedding
+     n3:::input
+     input_lr:::input
+     n2:::embedding
+     n1:::groupTitle
+     n6:::groupTitle
+    classDef input fill:#f0f4f8,stroke:#64b5f6,stroke-width:1px,color:#1976d2,font-size:20px
+    classDef embedding fill:#ffffff,stroke:#b39ddb,stroke-width:1px,color:#5e35b1,stroke-dasharray:3 3,font-size:20px
+    classDef trainableComp fill:#81d4fa,stroke:#29b6f6,stroke-width:1px,color:#0277bd
+    classDef pretrainedComp fill:#80cbc4,stroke:#26a69a,stroke-width:1px,color:#00695c
+    classDef output fill:#fafafa,stroke:#90a4ae,stroke-width:1px,color:#455a64
+    classDef Peach stroke-width:1px, stroke-dasharray:none, stroke:#FBB35A, fill:#FFEFDB, color:#8F632D, font-size:20px
+    classDef groupTitle fill:none, stroke:none, color:#000000,font-size:20px
+    classDef Pine stroke-width:1px, stroke-dasharray:none, stroke:#254336, fill:#27654A, color:#FFFFFF, font-size:20px
+    classDef noBorder fill:none, stroke:none, color:#546e7a,font-size:20px
+    style trainable fill:#e1f5fe,stroke:#e0e0e0,stroke-width:1px,color:#424242
+    style pretrained fill:#e0f2f1,stroke:#e0e0e0,stroke-width:1px,color:#424242

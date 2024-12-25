@@ -1,4 +1,5 @@
 import argparse
+
 import torch
 import pandas as pd
 import logging
@@ -216,6 +217,73 @@ class SoftPromptApproach(BaseCompletionApproach):
         )
 
 
+class FineTunedHebrewApproach(BaseCompletionApproach):
+    def __init__(self, checkpoint_path: str, device: str, base_model_name: str = "bigscience/bloomz-560m"):
+        """
+        Initialize the fine-tuned Hebrew approach using the checkpoint from BLOOMZ fine-tuning.
+
+        Args:
+            checkpoint_path: Path to the fine-tuned model checkpoint
+            device: Device to run the model on ('cuda' or 'cpu')
+            base_model_name: Name of the base model to get the tokenizer from
+        """
+        self.device = device
+
+        # Load tokenizer from the base model
+        self.tokenizer = AutoTokenizer.from_pretrained(base_model_name)
+
+        # Load the fine-tuned model
+        self.model = AutoModelForCausalLM.from_pretrained(
+            checkpoint_path,
+            torch_dtype=torch.float32,  # Use float32 to avoid FP16 issues
+            local_files_only=True  # Ensure it doesn't try to download
+        ).to(device)
+
+        # Add padding token if it doesn't exist
+        if self.tokenizer.pad_token is None:
+            self.tokenizer.pad_token = self.tokenizer.eos_token
+            self.model.config.pad_token_id = self.model.config.eos_token_id
+
+        self.model.eval()
+
+    def process_sentence(self, sentence: str) -> ModelOutput:
+        # Split sentence to get the last word
+        sentence = sentence.replace(".", "")
+        words = sentence.split()
+        truncated_sentence = " ".join(words[:-1])
+        actual_word = words[-1]
+
+        # Prepare input for the model
+        inputs = self.tokenizer(truncated_sentence, return_tensors="pt").to(self.device)
+
+        # Generate completion
+        generation_config = {
+            "max_new_tokens": 10,
+            "do_sample": True,
+            "temperature": 0.7,
+            "pad_token_id": self.tokenizer.pad_token_id,
+            "eos_token_id": self.tokenizer.encode(" ")[0],  # Use space as EOS token
+        }
+
+        outputs = self.model.generate(**inputs, **generation_config)
+        completion = self.tokenizer.decode(outputs[0], skip_special_tokens=True)
+
+        # Extract the predicted word (everything after the input prompt)
+        predicted_text = completion[len(truncated_sentence):].strip()
+        predicted_word = predicted_text.split()[0] if predicted_text else ""
+
+        return ModelOutput(
+            original_sentence=sentence,
+            truncated_sentence=truncated_sentence,
+            english_translation="",  # No translation needed
+            llm_completion="",  # No English LLM completion needed
+            final_translation=completion,
+            predicted_word=predicted_word,
+            actual_word=actual_word,
+            is_correct=predicted_word == actual_word,
+            approach_name="finetuned_hebrew"
+        )
+
 class CustomModelApproach(BaseCompletionApproach):
     def __init__(
             self,
@@ -330,6 +398,7 @@ def save_results(results: List[ModelOutput], output_file: str):
                 result.is_correct
             ])
 
+
 def parse_args():
     parser = argparse.ArgumentParser(description='NLP Model Evaluator')
     parser.add_argument('--device', default='cuda' if torch.cuda.is_available() else 'cpu',
@@ -340,17 +409,71 @@ def parse_args():
                         help='English to Hebrew model name')
     parser.add_argument('--llm-model', default='bigscience/bloomz-560m',
                         help='Base LLM model name')
-    parser.add_argument('--soft-prompt-model', required=True,
+
+    # Make these optional instead of required
+    parser.add_argument('--soft-prompt-model',
                         help='Path to the soft prompt model')
-    parser.add_argument('--custom-model', required=True,
+    parser.add_argument('--custom-model',
                         help='Path to the custom model checkpoint')
+    parser.add_argument('--finetuned-model',
+                        help='Path to the fine-tuned BLOOMZ model checkpoint')
+
+    # Required arguments
     parser.add_argument('--test-file', required=True,
                         help='Path to the test sentences file')
+
+    # Optional arguments
     parser.add_argument('--log-dir', default='logs',
                         help='Directory for logging')
     parser.add_argument('--output-file', default='model_comparison_results.csv',
                         help='Output file for detailed results')
+
+    # Add flags for each approach
+    parser.add_argument('--use-direct', action='store_true',
+                        help='Use Direct Hebrew Approach')
+    parser.add_argument('--use-naive', action='store_true',
+                        help='Use Naive Approach')
+    parser.add_argument('--use-soft-prompt', action='store_true',
+                        help='Use Soft Prompt Approach')
+    parser.add_argument('--use-finetuned', action='store_true',
+                        help='Use Fine-tuned Hebrew Approach')
+    parser.add_argument('--use-custom', action='store_true',
+                        help='Use Custom Model Approach')
+
     return parser.parse_args()
+
+
+def get_enabled_approaches(args, he_to_en, en_to_he):
+    """
+    Return a list of approach instances based on enabled flags and available models.
+    """
+    approaches = []
+
+    if args.use_direct:
+        approaches.append(DirectHebrewApproach(args.llm_model, args.device))
+
+    if args.use_naive:
+        approaches.append(NaiveApproach(he_to_en, en_to_he, args.llm_model, args.device))
+
+    if args.use_soft_prompt and args.soft_prompt_model:
+        approaches.append(SoftPromptApproach(he_to_en, en_to_he, args.soft_prompt_model, args.device))
+    elif args.use_soft_prompt:
+        print("Soft Prompt approach enabled but no model path provided. Skipping.")
+
+    if args.use_finetuned and args.finetuned_model:
+        approaches.append(FineTunedHebrewApproach(args.finetuned_model, args.device, args.llm_model))
+    elif args.use_finetuned:
+        print("Fine-tuned approach enabled but no model path provided. Skipping.")
+
+    if args.use_custom and args.custom_model:
+        approaches.append(CustomModelApproach(he_to_en, en_to_he, args.llm_model, args.custom_model, args.device))
+    elif args.use_custom:
+        print("Custom model approach enabled but no model path provided. Skipping.")
+
+    if not approaches:
+        raise ValueError("No approaches enabled. Please enable at least one approach using the appropriate flags.")
+
+    return approaches
 
 
 def main():
@@ -364,13 +487,13 @@ def main():
     he_to_en = TranslationModel(args.he_to_en_model, args.device)
     en_to_he = TranslationModel(args.en_to_he_model, args.device)
 
-    # Initialize approaches
-    approaches = [
-        NaiveApproach(he_to_en, en_to_he, args.llm_model, args.device),
-        SoftPromptApproach(he_to_en, en_to_he, args.soft_prompt_model, args.device),
-        CustomModelApproach(he_to_en, en_to_he, args.llm_model, args.custom_model, args.device),
-        DirectHebrewApproach(args.llm_model, args.device)
-    ]
+    # Get enabled approaches
+    try:
+        approaches = get_enabled_approaches(args, he_to_en, en_to_he)
+        logger.info(f"Enabled approaches: {[approach.__class__.__name__ for approach in approaches]}")
+    except ValueError as e:
+        logger.error(str(e))
+        return
 
     # Load test sentences
     logger.info(f"Loading test sentences from {args.test_file}")
@@ -378,10 +501,10 @@ def main():
 
     # Process sentences with each approach
     all_results = []
-    for sentence in tqdm(sentences,):
+    for sentence in tqdm(sentences):
         for approach in approaches:
             try:
-                sentence = sentence.replace(".","")
+                sentence = sentence.replace(".", "")
                 result = approach.process_sentence(sentence)
                 all_results.append(result)
             except Exception as e:

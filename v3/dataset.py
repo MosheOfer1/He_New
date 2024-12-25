@@ -73,11 +73,11 @@ class TextDataset(Dataset):
 
         # Pad each batch according to its respective tokenizer
         try:
-            padded_1 = torch.nn.utils.rnn.pad_sequence(input_ids_1, batch_first=True, padding_value=self.tokenizer1.pad_token_id)
+            padded_1 = torch.nn.utils.rnn.pad_sequence(input_ids_1, batch_first=True, padding_value=self.tokenizer1.pad_token_id if self.tokenizer1.pad_token_id is not None else 0)
             padded_attention_1 = torch.nn.utils.rnn.pad_sequence(attention_mask_1, batch_first=True, padding_value=0)
-            padded_2 = torch.nn.utils.rnn.pad_sequence(input_ids_2, batch_first=True, padding_value=self.tokenizer2.pad_token_id)
+            padded_2 = torch.nn.utils.rnn.pad_sequence(input_ids_2, batch_first=True, padding_value=self.tokenizer2.pad_token_id if self.tokenizer2.pad_token_id is not None else 0)
             padded_attention_2 = torch.nn.utils.rnn.pad_sequence(attention_mask_2, batch_first=True, padding_value=0)
-            padded_3 = torch.nn.utils.rnn.pad_sequence(input_ids_3, batch_first=True, padding_value=self.tokenizer3.pad_token_id)
+            padded_3 = torch.nn.utils.rnn.pad_sequence(input_ids_3, batch_first=True, padding_value=self.tokenizer3.pad_token_id if self.tokenizer3.pad_token_id is not None else 0)
             padded_attention_3 = torch.nn.utils.rnn.pad_sequence(attention_mask_3, batch_first=True, padding_value=0)
         except Exception as e:
             return None
